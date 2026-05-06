@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeStoryProject } from "../test/factories";
 
 describe("StoryProject", () => {
-  it("starts private and unpublished by default", () => {
+  it("starts with empty artifacts and voice memory", () => {
     const project = makeStoryProject();
 
     expect(project.stage).toBe("premise");
