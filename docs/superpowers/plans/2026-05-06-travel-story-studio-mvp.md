@@ -37,6 +37,7 @@ index.html
 src/main.tsx
 src/App.tsx
 src/styles.css
+src/vite-env.d.ts
 src/domain/types.ts
 src/domain/storyWorkflow.ts
 src/domain/lensTracker.ts
@@ -88,6 +89,7 @@ Responsibilities:
 - Create: `src/main.tsx`
 - Create: `src/App.tsx`
 - Create: `src/styles.css`
+- Create: `src/vite-env.d.ts`
 - Create: `src/domain/types.ts`
 - Create: `src/test/setup.ts`
 - Create: `src/test/factories.ts`
@@ -108,21 +110,21 @@ Responsibilities:
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest"
+    "@vitejs/plugin-react": "6.0.1",
+    "vite": "8.0.10",
+    "typescript": "6.0.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "lucide-react": "1.8.0"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "latest",
-    "@testing-library/react": "latest",
-    "@testing-library/user-event": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "jsdom": "latest",
-    "vitest": "latest"
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "jsdom": "27.2.0",
+    "vitest": "4.0.18"
   }
 }
 ```
@@ -142,7 +144,7 @@ Responsibilities:
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -261,6 +263,11 @@ select {
   max-width: 1180px;
   margin: 0 auto;
 }
+```
+
+```ts
+// src/vite-env.d.ts
+/// <reference types="vite/client" />
 ```
 
 - [ ] **Step 5: Define domain types**
