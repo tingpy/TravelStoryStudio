@@ -4,7 +4,7 @@
 
 **Goal:** Build a single-user private story studio MVP that supports story workspaces, honest editor-friend interviewing, story lens tracking, outline/draft/revision generation, voice memory, feedback import, and platform-neutral export.
 
-**Architecture:** Use a local-first web app with a thin UI layer, a focused domain layer, and an AI adapter boundary. The first implementation should work with deterministic local model stubs in tests and development, then allow a real model provider to be wired in without changing workspace, feedback, export, or UI code.
+**Architecture:** Use a local-first web app with a thin UI layer, a focused domain layer, and an AI adapter boundary. The first implementation should work with deterministic local model stubs in tests and development. Product behavior is designed for an LLM-powered chatbot and Writing Agent, while condition-based code supplies guardrails, workflow state, export formatting, and testable fallback behavior.
 
 **Tech Stack:** TypeScript, React, Vite, Vitest, Testing Library, local JSON persistence, CSS modules or plain CSS, provider-agnostic AI adapter.
 
@@ -72,7 +72,7 @@ Responsibilities:
 - `src/domain/voiceProfiles.ts`: separate Friend Voice Pack and Author Voice Profile updates.
 - `src/storage/localStore.ts`: JSON persistence behind a small repository interface.
 - `src/ai/aiAdapter.ts`: provider-agnostic AI interface.
-- `src/ai/localFakeAdapter.ts`: deterministic responses for tests and offline development.
+- `src/ai/localFakeAdapter.ts`: deterministic responses for tests and offline development; this is a development stand-in, not the intended production intelligence.
 - `src/ui/*`: focused React components.
 
 ---
