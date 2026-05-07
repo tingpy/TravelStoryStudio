@@ -10,7 +10,9 @@ The core product is not a tourist recommendation blog. It is a reflective writin
 
 ## Product Direction
 
-The first version is a journal-first private web app. It focuses on story workspaces, emotionally supportive interviewing, outline-first drafting, feedback ingestion, voice learning, and export.
+The first version is a journal-first local CLI agent. It focuses on story workspaces, emotionally supportive interviewing, outline-first drafting, feedback ingestion, voice learning, and export without requiring a web server or browser UI.
+
+The CLI talks to the author in a message-like terminal flow. A polished webpage or desktop message UI can be added later after the agent behavior feels right.
 
 The app does not include a built-in public blog in version one. Publishing happens manually on external platforms such as Instagram, Threads, Facebook, forums, newsletters, or a personal website.
 
@@ -51,11 +53,13 @@ For cultural friction in romance, the app should treat it as its own mixed lens 
 
 ### Story Workspace
 
-A private project page for each story. It stores the premise, chat transcript, extracted notes, story lenses, outline, drafts, revisions, feedback imports, export versions, and project status.
+A private local folder for each story. It stores the premise, chat transcript, extracted notes, story lenses, outline, drafts, revisions, feedback imports, export versions, and project status.
 
 ### Interview Chatbot
 
 A warm editor-friend that helps the author remember, process, and develop the story. It provides emotional support while also noticing narrative tension, potential reader hooks, and places where the author may need to look more honestly at their own role in the story.
+
+The chatbot is powered by the OpenAI API in version one. Rule-based code supplies workflow state, command handling, persistence, and guardrails; it is not meant to replace the LLM conversation.
 
 ### Story Lens Tracker
 
@@ -102,6 +106,17 @@ The app exports platform-ready versions, such as:
 - Thread-style post
 - Website Markdown
 
+### CLI Commands
+
+Version one exposes these local commands:
+
+- `travel-story chat`: start or continue a message-like terminal conversation.
+- `/outline`: create or update the story outline during a chat.
+- `/draft`: create a draft from the outline.
+- `/feedback`: paste friend or reader feedback for analysis.
+- `/export markdown`: export the latest draft as Markdown.
+- `/quit`: exit the chat.
+
 ## Assistant Behavior
 
 The chatbot should feel like a warm friend with sharp editor instincts.
@@ -130,6 +145,23 @@ During Outline, the Writing Agent uses the transcript, notes, story lenses, and 
 During Draft and Revision, the Writing Agent writes from the approved outline, then responds to edits and feedback. Explicit author feedback and observed edits can update the Author Voice Profile, but the resulting profile remains reviewable and editable.
 
 During Feedback, the author imports private friend conversations or public reader discussion. The agent summarizes reactions and suggests revisions, future post ideas, or voice-profile updates.
+
+The default local file layout is:
+
+```text
+stories/
+  <story-id>/
+    premise.md
+    chat.jsonl
+    notes.json
+    outline.md
+    drafts/
+    feedback/
+    exports/
+voice/
+  friend-voice-pack.md
+  author-voice-profile.md
+```
 
 ## Serialization
 
@@ -214,6 +246,8 @@ Tests should cover:
 In scope:
 
 - Private story workspaces
+- Local terminal message interface
+- OpenAI API provider using `OPENAI_API_KEY`
 - Interview chatbot
 - Story lens tracking
 - Writing Agent with outline, draft, and revision modes
@@ -225,6 +259,7 @@ In scope:
 
 Out of scope:
 
+- Required web UI for version one
 - Built-in public blog hosting
 - Direct publishing to social media
 - Direct reading from Instagram, Threads, Facebook, forums, or CMS platforms
