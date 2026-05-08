@@ -12,7 +12,7 @@ The core product is not a tourist recommendation blog. It is a reflective writin
 
 The first version is a journal-first local CLI agent. It focuses on story workspaces, emotionally supportive interviewing, outline-first drafting, feedback ingestion, voice learning, and export without requiring a web server or browser UI.
 
-The CLI talks to the author in a message-like terminal flow. A polished webpage or desktop message UI can be added later after the agent behavior feels right.
+The CLI talks to the author in a message-like terminal flow. A lightweight local Messages-style web UI is available for testing the chat experience without making the web app the core product.
 
 The app does not include a built-in public blog in version one. Publishing happens manually on external platforms such as Instagram, Threads, Facebook, forums, newsletters, or a personal website.
 
@@ -59,7 +59,7 @@ A private local folder for each story. It stores the premise, chat transcript, e
 
 A warm editor-friend that helps the author remember, process, and develop the story. It provides emotional support while also noticing narrative tension, potential reader hooks, and places where the author may need to look more honestly at their own role in the story.
 
-The chatbot is powered by the OpenAI API in version one. Rule-based code supplies workflow state, command handling, persistence, and guardrails; it is not meant to replace the LLM conversation.
+The chatbot is powered by the OpenAI API in version one, with an Ollama provider available for offline/local testing. Rule-based code supplies workflow state, command handling, persistence, and guardrails; it is not meant to replace the LLM conversation.
 
 ### Story Lens Tracker
 
@@ -111,6 +111,7 @@ The app exports platform-ready versions, such as:
 Version one exposes these local commands:
 
 - `travel-story chat`: start or continue a message-like terminal conversation.
+- `travel-story ui`: start the lightweight local Messages-style browser interface.
 - `/outline`: create or update the story outline during a chat.
 - `/draft`: create a draft from the outline.
 - `/feedback`: paste friend or reader feedback for analysis.
@@ -248,6 +249,7 @@ In scope:
 - Private story workspaces
 - Local terminal message interface
 - OpenAI API provider using `OPENAI_API_KEY`
+- Ollama provider for offline/local model testing
 - Interview chatbot
 - Story lens tracking
 - Writing Agent with outline, draft, and revision modes

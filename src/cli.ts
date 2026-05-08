@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { OpenAIProvider } from "./llm/openAIProvider";
+import { createLlmProvider } from "./llm/providerFactory";
 import { FileStoryStore } from "./storage/fileStore";
 import { StoryAgent } from "./agent/storyAgent";
+import { startMessageServer } from "./web/server";
 
 const HELP = `
 Commands:
@@ -17,15 +18,20 @@ Commands:
 
 async function main(): Promise<void> {
   const command = process.argv[2] ?? "chat";
+  if (command === "ui") {
+    startMessageServer();
+    return;
+  }
+
   if (command !== "chat") {
-    console.error("Usage: travel-story chat");
+    console.error("Usage: travel-story chat | ui");
     process.exitCode = 1;
     return;
   }
 
   const rl = createInterface({ input, output });
   const store = new FileStoryStore(process.cwd());
-  const agent = new StoryAgent(store, new OpenAIProvider());
+  const agent = new StoryAgent(store, createLlmProvider());
 
   console.log("Travel Story Studio");
   console.log(HELP);

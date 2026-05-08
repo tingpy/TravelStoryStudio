@@ -9,6 +9,8 @@
   "scripts": {
     "build": "tsc -b",
     "start": "node dist/cli.js chat",
+    "ui": "node dist/cli.js ui",
+    "ui:ollama": "TRAVEL_STORY_PROVIDER=ollama node dist/cli.js ui",
     "test": "vitest run",
     "test:watch": "vitest"
   },
