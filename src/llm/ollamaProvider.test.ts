@@ -27,4 +27,22 @@ describe("OllamaProvider", () => {
       }),
     );
   });
+
+  it("explains when Ollama cannot be reached", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    const provider = new OllamaProvider({
+      baseUrl: "http://localhost:11434",
+      model: "qwen2.5:7b",
+    });
+
+    await expect(
+      provider.complete({
+        system: "Be a careful friend-editor.",
+        messages: [{ role: "user", content: "A premise." }],
+      }),
+    ).rejects.toThrow(
+      "Could not reach Ollama at http://localhost:11434. Start Ollama and make sure model qwen2.5:7b is installed.",
+    );
+  });
 });

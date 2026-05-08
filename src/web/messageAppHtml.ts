@@ -241,6 +241,13 @@ export function messageAppHtml(): string {
         }
       });
 
+      inputEl.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+          event.preventDefault();
+          formEl.requestSubmit();
+        }
+      });
+
       document.querySelectorAll("[data-command]").forEach((button) => {
         button.addEventListener("click", async () => {
           const command = button.dataset.command;

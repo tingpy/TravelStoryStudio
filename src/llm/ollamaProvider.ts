@@ -16,23 +16,31 @@ export class OllamaProvider implements LlmProvider {
   }
 
   async complete(request: LlmRequest): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: this.model,
-        stream: false,
-        messages: [
-          { role: "system", content: request.system },
-          ...request.messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
-        ],
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: this.model,
+          stream: false,
+          messages: [
+            { role: "system", content: request.system },
+            ...request.messages.map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
+          ],
+        }),
+      });
+    } catch (error) {
+      throw new Error(
+        `Could not reach Ollama at ${this.baseUrl}. Start Ollama and make sure model ${this.model} is installed.`,
+        { cause: error },
+      );
+    }
 
     if (!response.ok) {
       const detail = await response.text();
