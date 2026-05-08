@@ -88,4 +88,39 @@ describe("FileStoryStore", () => {
     ]);
     await expect(store.readBotCalibrationProfile()).resolves.toContain("attraction and discomfort");
   });
+
+  it("lists story chats and deletes selected story workspaces", async () => {
+    const root = await mkdtemp(join(tmpdir(), "travel-story-"));
+    const store = new FileStoryStore(root);
+    await store.createStory("story-old", "An older premise.");
+    await store.appendMessage("story-old", {
+      id: "m1",
+      role: "author",
+      content: "An older premise.",
+      createdAt: "2026-05-07T00:00:00.000Z",
+    });
+    await store.createStory("story-new", "A newer premise.");
+    await store.appendMessage("story-new", {
+      id: "m2",
+      role: "author",
+      content: "A newer premise.",
+      createdAt: "2026-05-09T00:00:00.000Z",
+    });
+
+    const stories = await store.listStories();
+
+    expect(stories.map((story) => story.id)).toEqual(["story-new", "story-old"]);
+    expect(stories[0]).toEqual(
+      expect.objectContaining({
+        id: "story-new",
+        premise: "A newer premise.",
+        messageCount: 1,
+      }),
+    );
+
+    await store.deleteStory("story-old");
+
+    await expect(store.listStories()).resolves.toEqual([expect.objectContaining({ id: "story-new" })]);
+    await expect(store.readMessages("story-old")).resolves.toEqual([]);
+  });
 });

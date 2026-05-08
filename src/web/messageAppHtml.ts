@@ -40,6 +40,53 @@ export function messageAppHtml(): string {
         padding: 12px;
       }
 
+      .new-chat,
+      .story-open,
+      .story-delete {
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      .new-chat {
+        background: #0a84ff;
+        color: #ffffff;
+        margin-top: 12px;
+        padding: 8px 10px;
+        width: 100%;
+      }
+
+      .story-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .story-item {
+        background: #ffffff;
+        border: 1px solid #d8d8de;
+        border-radius: 8px;
+        display: grid;
+        gap: 6px;
+        padding: 10px;
+      }
+
+      .story-open {
+        background: transparent;
+        color: #1d1d1f;
+        overflow-wrap: anywhere;
+        padding: 0;
+        text-align: left;
+      }
+
+      .story-delete {
+        background: transparent;
+        color: #c01818;
+        font-size: 12px;
+        justify-self: start;
+        padding: 0;
+      }
+
       .chat {
         display: grid;
         grid-template-rows: auto 1fr auto;
@@ -162,6 +209,8 @@ export function messageAppHtml(): string {
           <strong id="storyId">New story</strong>
           <p>Provider: <span id="provider">ollama</span></p>
         </div>
+        <button id="newChat" class="new-chat" type="button">New Chat</button>
+        <div id="storyList" class="story-list"></div>
       </aside>
       <section class="chat">
         <header class="topbar">
@@ -188,19 +237,25 @@ export function messageAppHtml(): string {
       const messagesEl = document.querySelector("#messages");
       const inputEl = document.querySelector("#input");
       const formEl = document.querySelector("#composer");
-      const storyId = "story-" + Date.now();
+      const storyListEl = document.querySelector("#storyList");
+      const storyIdEl = document.querySelector("#storyId");
+      let storyId = "story-" + Date.now();
       let started = false;
       let pendingCommand = null;
       let selectedAssistantMessage = null;
-      document.querySelector("#storyId").textContent = storyId;
+      storyIdEl.textContent = storyId;
 
-      function addBubble(role, content) {
+      function addBubble(role, content, metadata = {}) {
         const row = document.createElement("div");
         row.className = "bubble-row " + role;
+        if (metadata.messageId) row.dataset.messageId = metadata.messageId;
         const bubble = document.createElement("div");
         bubble.className = "bubble";
         bubble.textContent = content;
         row.appendChild(bubble);
+        if (role === "assistant" && metadata.messageId && metadata.feedbackEnabled) {
+          addFeedbackButton(row, metadata.messageId, content);
+        }
         messagesEl.appendChild(row);
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
@@ -230,6 +285,73 @@ export function messageAppHtml(): string {
         return data;
       }
 
+      async function get(path) {
+        const response = await fetch(path);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Request failed");
+        return data;
+      }
+
+      function resetChat() {
+        storyId = "story-" + Date.now();
+        started = false;
+        pendingCommand = null;
+        selectedAssistantMessage = null;
+        storyIdEl.textContent = storyId;
+        messagesEl.innerHTML = "";
+        inputEl.value = "";
+        inputEl.placeholder = "Tell the story, or paste feedback after clicking Feedback...";
+        addBubble("assistant", "Tell me the rough premise of the story. I’ll ask like a warm friend with editor instincts.");
+      }
+
+      async function loadStories() {
+        const data = await get("/api/stories");
+        storyListEl.innerHTML = "";
+        data.stories.forEach((story) => {
+          const item = document.createElement("div");
+          item.className = "story-item";
+
+          const openButton = document.createElement("button");
+          openButton.type = "button";
+          openButton.className = "story-open";
+          openButton.textContent = story.premise || story.id;
+          openButton.title = "Continue chat";
+          openButton.addEventListener("click", () => openStory(story.id));
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "story-delete";
+          deleteButton.textContent = "Delete chat";
+          deleteButton.addEventListener("click", async (event) => {
+            event.stopPropagation();
+            if (!confirm("Delete this local chat?")) return;
+            await post("/api/delete-story", { storyId: story.id });
+            if (story.id === storyId) resetChat();
+            await loadStories();
+          });
+
+          item.appendChild(openButton);
+          item.appendChild(deleteButton);
+          storyListEl.appendChild(item);
+        });
+      }
+
+      async function openStory(id) {
+        const project = await get("/api/story?storyId=" + encodeURIComponent(id));
+        storyId = project.id;
+        started = true;
+        pendingCommand = null;
+        selectedAssistantMessage = null;
+        storyIdEl.textContent = storyId;
+        messagesEl.innerHTML = "";
+        project.messages.forEach((message) => {
+          addBubble(message.role, message.content, {
+            messageId: message.id,
+            feedbackEnabled: message.role === "assistant",
+          });
+        });
+      }
+
       async function sendMessage(content) {
         addBubble("author", content);
         addBubble("assistant", "Thinking...");
@@ -244,6 +366,7 @@ export function messageAppHtml(): string {
             thinking.dataset.messageId = data.assistantMessageId;
             addFeedbackButton(thinking, data.assistantMessageId, data.reply);
           }
+          await loadStories();
         } catch (error) {
           thinking.querySelector(".bubble").textContent = error.message;
         }
@@ -352,7 +475,10 @@ export function messageAppHtml(): string {
         });
       });
 
-      addBubble("assistant", "Tell me the rough premise of the story. I’ll ask like a warm friend with editor instincts.");
+      document.querySelector("#newChat").addEventListener("click", resetChat);
+
+      resetChat();
+      loadStories().catch((error) => addBubble("assistant", error.message));
     </script>
   </body>
 </html>`;

@@ -27,4 +27,14 @@ describe("messageAppHtml", () => {
     expect(html).toContain("selectedAssistantMessage");
     expect(html).toContain("Give feedback on this response");
   });
+
+  it("includes controls for continuing and deleting old chats", () => {
+    const html = messageAppHtml();
+
+    expect(html).toContain('id="storyList"');
+    expect(html).toContain("/api/stories");
+    expect(html).toContain("/api/story?");
+    expect(html).toContain("/api/delete-story");
+    expect(html).toContain("Delete chat");
+  });
 });

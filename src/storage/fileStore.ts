@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ChatMessage, StoryNote, StoryProject } from "../domain/types";
 
@@ -15,6 +15,13 @@ export interface BotResponseFeedback {
   assistantResponse: string;
   comment: string;
   createdAt: string;
+}
+
+export interface StorySummary {
+  id: string;
+  premise: string;
+  messageCount: number;
+  updatedAt: string;
 }
 
 export interface StoryWorkspacePaths {
@@ -124,6 +131,44 @@ export class FileStoryStore {
     };
   }
 
+  async listStories(): Promise<StorySummary[]> {
+    const storiesDir = join(this.root, "stories");
+    let entries;
+    try {
+      entries = await readdir(storiesDir, { withFileTypes: true });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+        return [];
+      }
+      throw error;
+    }
+
+    const summaries = await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map(async (entry) => {
+          const paths = this.paths(entry.name);
+          const premise = (await readOptionalFile(paths.premise)).trim();
+          const messages = await this.readMessages(entry.name);
+          const updatedAt = await latestMtime(paths.chat, paths.premise);
+          return {
+            id: entry.name,
+            premise,
+            messageCount: messages.length,
+            updatedAt,
+          };
+        }),
+    );
+
+    return summaries
+      .filter((summary) => summary.premise || summary.messageCount > 0)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
+
+  async deleteStory(storyId: string): Promise<void> {
+    await rm(this.paths(storyId).storyDir, { recursive: true, force: true });
+  }
+
   async appendFriendConversationSample(sample: FriendConversationSample): Promise<void> {
     const paths = this.paths("voice");
     await mkdir(paths.voiceDir, { recursive: true });
@@ -186,4 +231,20 @@ function parseJsonLines<T>(raw: string): T[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => JSON.parse(line) as T);
+}
+
+async function latestMtime(...paths: string[]): Promise<string> {
+  const times = await Promise.all(
+    paths.map(async (path) => {
+      try {
+        return (await stat(path)).mtime;
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+          return new Date(0);
+        }
+        throw error;
+      }
+    }),
+  );
+  return new Date(Math.max(...times.map((time) => time.getTime()))).toISOString();
 }

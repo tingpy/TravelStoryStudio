@@ -23,26 +23,46 @@ export function startMessageServer(options: { port?: number; host?: string } = {
 
   const server = createServer(async (request, response) => {
     try {
-      if (request.method === "GET" && request.url === "/") {
+      const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+
+      if (request.method === "GET" && url.pathname === "/") {
         sendHtml(response, messageAppHtml());
         return;
       }
 
-      if (request.method === "POST" && request.url === "/api/start") {
+      if (request.method === "GET" && url.pathname === "/api/stories") {
+        sendJson(response, { stories: await store.listStories() });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/story") {
+        const storyId = required(url.searchParams.get("storyId") ?? undefined, "storyId");
+        sendJson(response, await store.readProject(storyId));
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/delete-story") {
+        const body = await readJson(request);
+        await store.deleteStory(required(body.storyId, "storyId"));
+        sendJson(response, { ok: true });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/start") {
         const body = await readJson(request);
         const result = await agent.startStory(required(body.storyId, "storyId"), required(body.premise, "premise"));
         sendJson(response, result);
         return;
       }
 
-      if (request.method === "POST" && request.url === "/api/chat") {
+      if (request.method === "POST" && url.pathname === "/api/chat") {
         const body = await readJson(request);
         const result = await agent.chat(required(body.storyId, "storyId"), required(body.content, "content"));
         sendJson(response, result);
         return;
       }
 
-      if (request.method === "POST" && request.url === "/api/command") {
+      if (request.method === "POST" && url.pathname === "/api/command") {
         const body = await readJson(request);
         const storyId = required(body.storyId, "storyId");
         const command = required(body.command, "command");
@@ -54,18 +74,18 @@ export function startMessageServer(options: { port?: number; host?: string } = {
         return;
       }
 
-      if (request.method === "POST" && request.url === "/api/friend-conversation-style") {
+      if (request.method === "POST" && url.pathname === "/api/friend-conversation-style") {
         const body = await readJson(request);
         sendJson(response, await agent.learnFriendConversationStyle(required(body.rawChat, "rawChat")));
         return;
       }
 
-      if (request.method === "GET" && request.url === "/api/friend-conversation-style") {
+      if (request.method === "GET" && url.pathname === "/api/friend-conversation-style") {
         sendJson(response, { profile: await store.readFriendConversationProfile() });
         return;
       }
 
-      if (request.method === "POST" && request.url === "/api/bot-feedback") {
+      if (request.method === "POST" && url.pathname === "/api/bot-feedback") {
         const body = await readJson(request);
         sendJson(
           response,
@@ -79,7 +99,7 @@ export function startMessageServer(options: { port?: number; host?: string } = {
         return;
       }
 
-      if (request.method === "GET" && request.url === "/api/bot-feedback") {
+      if (request.method === "GET" && url.pathname === "/api/bot-feedback") {
         sendJson(response, { profile: await store.readBotCalibrationProfile() });
         return;
       }
