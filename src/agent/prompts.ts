@@ -31,3 +31,23 @@ Analyze pasted friend or reader feedback.
 Separate suggested edits, emotional reactions, confusion, compelling moments, warnings, and reader questions.
 If the feedback is a chat conversation, use the back-and-forth context rather than treating every line as an isolated comment.
 `.trim();
+
+export function interviewSystemPrompt(friendConversationProfile: string, botCalibrationProfile: string): string {
+  const sections = [INTERVIEW_SYSTEM_PROMPT];
+
+  if (friendConversationProfile.trim()) {
+    sections.push(`Friend Conversation Style Profile:
+${friendConversationProfile.trim()}
+
+Use this to shape emotional support, follow-up questions, challenge style, attention patterns, rhythm, and humor. Do not quote, reveal, or treat private friend chats as story material.`);
+  }
+
+  if (botCalibrationProfile.trim()) {
+    sections.push(`Bot Calibration Profile:
+${botCalibrationProfile.trim()}
+
+Use this to improve your interviewing behavior. Do not treat the author's meta-feedback as story material.`);
+  }
+
+  return sections.join("\n\n");
+}

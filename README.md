@@ -83,6 +83,27 @@ Shared voice memory will live under:
 
 ```text
 voice/
-  friend-voice-pack.md
-  author-voice-profile.md
+  friend-conversation-samples.jsonl
+  friend-conversation-profile.md
+  bot-response-feedback.jsonl
+  bot-calibration-profile.md
 ```
+
+### Friend Style
+
+Click `Friend Style` to paste excerpts from close-friend chats. The app stores raw excerpts locally in
+`voice/friend-conversation-samples.jsonl` and distills them into
+`voice/friend-conversation-profile.md`.
+
+The profile captures support style, follow-up question style, challenge style, attention patterns,
+rhythm, humor, discovered patterns, reusable instructions, and example moves. The story chatbot uses
+the profile as conversation guidance only. It should not quote or reveal private friend messages.
+
+### Bot Feedback
+
+Click `Give feedback on this response` under a chatbot message, or click `Bot Feedback`, to tell the app
+how the chatbot should have responded differently.
+
+The app stores selected-response feedback locally in `voice/bot-response-feedback.jsonl` and distills it
+into `voice/bot-calibration-profile.md`. This profile changes future interviewing behavior, such as when
+to challenge, what to follow up on, and what signals the chatbot should notice.

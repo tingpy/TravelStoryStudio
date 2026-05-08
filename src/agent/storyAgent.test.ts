@@ -43,4 +43,54 @@ describe("StoryAgent", () => {
     await expect(readFile(feedback.savedPath ?? "", "utf8")).resolves.toBe("feedback summary\n");
     await expect(readFile(exported.savedPath ?? "", "utf8")).resolves.toBe("# Export\n");
   });
+
+  it("distills friend chats into a mixed conversation style profile", async () => {
+    const root = await mkdtemp(join(tmpdir(), "travel-story-agent-"));
+    const store = new FileStoryStore(root);
+    const llm = new FakeLlmProvider([
+      "# Friend Conversation Style Profile\n\n## Core Dimensions\n\n### Follow-Up Questions\nAsk about the hidden feeling before giving advice.\n\n## Discovered Patterns\n- Notices when I joke around pain.\n\n## Example Moves\nPrefer: Wait, is this attraction, fear, or both?",
+    ]);
+    const agent = new StoryAgent(store, llm, () => "2026-05-09T00:00:00.000Z");
+
+    const result = await agent.learnFriendConversationStyle("Friend: you're joking, but you sound hurt.");
+
+    expect(result.reply).toContain("Friend Conversation Style Profile");
+    await expect(store.readFriendConversationProfile()).resolves.toContain("Discovered Patterns");
+    await expect(store.readFriendConversationSamples()).resolves.toHaveLength(1);
+  });
+
+  it("distills comments on selected bot responses into a calibration profile", async () => {
+    const root = await mkdtemp(join(tmpdir(), "travel-story-agent-"));
+    const store = new FileStoryStore(root);
+    const llm = new FakeLlmProvider([
+      "# Bot Calibration Profile\n\n- Challenge more when the author simplifies another person.\n- Follow up on attraction mixed with discomfort.",
+    ]);
+    const agent = new StoryAgent(store, llm, () => "2026-05-09T00:00:00.000Z");
+
+    const result = await agent.calibrateBotResponse({
+      storyId: "story-1",
+      assistantMessageId: "assistant-1",
+      assistantResponse: "That sounds intense. What happened next?",
+      comment: "I wanted you to ask why I felt flattered instead of moving on.",
+    });
+
+    expect(result.reply).toContain("Bot Calibration Profile");
+    await expect(store.readBotCalibrationProfile()).resolves.toContain("attraction mixed with discomfort");
+    await expect(store.readBotResponseFeedback()).resolves.toHaveLength(1);
+  });
+
+  it("uses friend conversation and bot calibration profiles when interviewing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "travel-story-agent-"));
+    const store = new FileStoryStore(root);
+    await store.saveFriendConversationProfile("# Friend Conversation Style Profile\n\nAsk one precise follow-up.");
+    await store.saveBotCalibrationProfile("# Bot Calibration Profile\n\nChallenge more when I simplify people.");
+    const llm = new FakeLlmProvider(["What made your reaction feel bigger than the event itself?"]);
+    const agent = new StoryAgent(store, llm, () => "2026-05-09T00:00:00.000Z");
+
+    const result = await agent.startStory("story-voice", "I met a right-wing man who was obsessed with me.");
+
+    expect(result.assistantMessageId).toContain("assistant-");
+    expect(llm.requests[0].system).toContain("Ask one precise follow-up");
+    expect(llm.requests[0].system).toContain("Challenge more when I simplify people");
+  });
 });

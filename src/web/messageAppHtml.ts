@@ -68,7 +68,11 @@ export function messageAppHtml(): string {
       }
 
       .bubble-row.author { justify-content: flex-end; }
-      .bubble-row.assistant { justify-content: flex-start; }
+      .bubble-row.assistant {
+        align-items: flex-start;
+        flex-direction: column;
+        justify-content: flex-start;
+      }
 
       .bubble {
         max-width: min(680px, 78%);
@@ -88,6 +92,17 @@ export function messageAppHtml(): string {
         color: #1d1d1f;
         background: #e9e9eb;
         border-bottom-left-radius: 5px;
+      }
+
+      .bubble-feedback {
+        align-self: flex-start;
+        border: 0;
+        background: transparent;
+        color: #6e6e73;
+        cursor: pointer;
+        font-size: 12px;
+        margin: 3px 8px 0;
+        padding: 2px;
       }
 
       .composer {
@@ -158,6 +173,8 @@ export function messageAppHtml(): string {
             <button type="button" data-command="outline">Outline</button>
             <button type="button" data-command="draft">Draft</button>
             <button type="button" data-command="feedback">Feedback</button>
+            <button type="button" data-command="friendStyle">Friend Style</button>
+            <button type="button" data-command="botFeedback">Bot Feedback</button>
             <button type="button" data-command="export">Export</button>
           </div>
           <div class="input-row">
@@ -174,6 +191,7 @@ export function messageAppHtml(): string {
       const storyId = "story-" + Date.now();
       let started = false;
       let pendingCommand = null;
+      let selectedAssistantMessage = null;
       document.querySelector("#storyId").textContent = storyId;
 
       function addBubble(role, content) {
@@ -185,6 +203,20 @@ export function messageAppHtml(): string {
         row.appendChild(bubble);
         messagesEl.appendChild(row);
         messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      function addFeedbackButton(row, messageId, content) {
+        const feedbackButton = document.createElement("button");
+        feedbackButton.type = "button";
+        feedbackButton.className = "bubble-feedback";
+        feedbackButton.textContent = "Give feedback on this response";
+        feedbackButton.addEventListener("click", () => {
+          selectedAssistantMessage = { id: messageId, content };
+          pendingCommand = "botFeedback";
+          inputEl.placeholder = "Tell me what this response should have done differently...";
+          inputEl.focus();
+        });
+        row.appendChild(feedbackButton);
       }
 
       async function post(path, body) {
@@ -208,6 +240,10 @@ export function messageAppHtml(): string {
             : await post("/api/chat", { storyId, content });
           started = true;
           thinking.querySelector(".bubble").textContent = data.reply;
+          if (data.assistantMessageId) {
+            thinking.dataset.messageId = data.assistantMessageId;
+            addFeedbackButton(thinking, data.assistantMessageId, data.reply);
+          }
         } catch (error) {
           thinking.querySelector(".bubble").textContent = error.message;
         }
@@ -227,6 +263,39 @@ export function messageAppHtml(): string {
         }
       }
 
+      async function learnFriendStyle(rawChat) {
+        addBubble("author", "/friend style\\n" + rawChat);
+        addBubble("assistant", "Learning friend conversation style...");
+        const thinking = messagesEl.lastElementChild;
+        try {
+          const data = await post("/api/friend-conversation-style", { rawChat });
+          thinking.querySelector(".bubble").textContent = data.savedPath
+            ? data.reply + "\\n\\nSaved: " + data.savedPath
+            : data.reply;
+        } catch (error) {
+          thinking.querySelector(".bubble").textContent = error.message;
+        }
+      }
+
+      async function sendBotFeedback(selected, comment) {
+        addBubble("author", "/bot feedback\\n" + comment);
+        addBubble("assistant", "Updating bot calibration...");
+        const thinking = messagesEl.lastElementChild;
+        try {
+          const data = await post("/api/bot-feedback", {
+            storyId,
+            assistantMessageId: selected.id,
+            assistantResponse: selected.content,
+            comment,
+          });
+          thinking.querySelector(".bubble").textContent = data.savedPath
+            ? data.reply + "\\n\\nSaved: " + data.savedPath
+            : data.reply;
+        } catch (error) {
+          thinking.querySelector(".bubble").textContent = error.message;
+        }
+      }
+
       formEl.addEventListener("submit", async (event) => {
         event.preventDefault();
         const content = inputEl.value.trim();
@@ -235,7 +304,15 @@ export function messageAppHtml(): string {
         if (pendingCommand) {
           const command = pendingCommand;
           pendingCommand = null;
-          await runCommand(command, content);
+          if (command === "friendStyle") {
+            await learnFriendStyle(content);
+          } else if (command === "botFeedback") {
+            const selected = selectedAssistantMessage || { id: "manual-reference", content: "User described the response manually." };
+            selectedAssistantMessage = null;
+            await sendBotFeedback(selected, content);
+          } else {
+            await runCommand(command, content);
+          }
         } else {
           await sendMessage(content);
         }
@@ -254,6 +331,20 @@ export function messageAppHtml(): string {
           if (command === "feedback") {
             pendingCommand = "feedback";
             inputEl.placeholder = "Paste friend or reader feedback, then press Send...";
+            inputEl.focus();
+            return;
+          }
+          if (command === "friendStyle") {
+            pendingCommand = "friendStyle";
+            inputEl.placeholder = "Paste friend chat excerpts. I’ll learn conversational patterns, not story material...";
+            inputEl.focus();
+            return;
+          }
+          if (command === "botFeedback") {
+            pendingCommand = "botFeedback";
+            inputEl.placeholder = selectedAssistantMessage
+              ? "Tell me what this selected response should have done differently..."
+              : "No response selected. Describe which recent bot response you mean and what should change...";
             inputEl.focus();
             return;
           }

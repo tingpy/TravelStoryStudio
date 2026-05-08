@@ -2,6 +2,21 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ChatMessage, StoryNote, StoryProject } from "../domain/types";
 
+export interface FriendConversationSample {
+  id: string;
+  rawText: string;
+  createdAt: string;
+}
+
+export interface BotResponseFeedback {
+  id: string;
+  storyId: string;
+  assistantMessageId: string;
+  assistantResponse: string;
+  comment: string;
+  createdAt: string;
+}
+
 export interface StoryWorkspacePaths {
   root: string;
   storyDir: string;
@@ -12,6 +27,11 @@ export interface StoryWorkspacePaths {
   draftsDir: string;
   feedbackDir: string;
   exportsDir: string;
+  voiceDir: string;
+  friendConversationSamples: string;
+  friendConversationProfile: string;
+  botResponseFeedback: string;
+  botCalibrationProfile: string;
 }
 
 export class FileStoryStore {
@@ -19,6 +39,7 @@ export class FileStoryStore {
 
   paths(storyId: string): StoryWorkspacePaths {
     const storyDir = join(this.root, "stories", storyId);
+    const voiceDir = join(this.root, "voice");
     return {
       root: this.root,
       storyDir,
@@ -29,6 +50,11 @@ export class FileStoryStore {
       draftsDir: join(storyDir, "drafts"),
       feedbackDir: join(storyDir, "feedback"),
       exportsDir: join(storyDir, "exports"),
+      voiceDir,
+      friendConversationSamples: join(voiceDir, "friend-conversation-samples.jsonl"),
+      friendConversationProfile: join(voiceDir, "friend-conversation-profile.md"),
+      botResponseFeedback: join(voiceDir, "bot-response-feedback.jsonl"),
+      botCalibrationProfile: join(voiceDir, "bot-calibration-profile.md"),
     };
   }
 
@@ -97,6 +123,50 @@ export class FileStoryStore {
       messages: await this.readMessages(storyId),
     };
   }
+
+  async appendFriendConversationSample(sample: FriendConversationSample): Promise<void> {
+    const paths = this.paths("voice");
+    await mkdir(paths.voiceDir, { recursive: true });
+    await writeFile(paths.friendConversationSamples, `${JSON.stringify(sample)}\n`, { encoding: "utf8", flag: "a" });
+  }
+
+  async readFriendConversationSamples(): Promise<FriendConversationSample[]> {
+    const raw = await readOptionalFile(this.paths("voice").friendConversationSamples);
+    return parseJsonLines<FriendConversationSample>(raw);
+  }
+
+  async saveFriendConversationProfile(profile: string): Promise<string> {
+    const paths = this.paths("voice");
+    await mkdir(paths.voiceDir, { recursive: true });
+    await writeFile(paths.friendConversationProfile, `${profile.trim()}\n`, "utf8");
+    return paths.friendConversationProfile;
+  }
+
+  async readFriendConversationProfile(): Promise<string> {
+    return (await readOptionalFile(this.paths("voice").friendConversationProfile)).trim();
+  }
+
+  async appendBotResponseFeedback(feedback: BotResponseFeedback): Promise<void> {
+    const paths = this.paths("voice");
+    await mkdir(paths.voiceDir, { recursive: true });
+    await writeFile(paths.botResponseFeedback, `${JSON.stringify(feedback)}\n`, { encoding: "utf8", flag: "a" });
+  }
+
+  async readBotResponseFeedback(): Promise<BotResponseFeedback[]> {
+    const raw = await readOptionalFile(this.paths("voice").botResponseFeedback);
+    return parseJsonLines<BotResponseFeedback>(raw);
+  }
+
+  async saveBotCalibrationProfile(profile: string): Promise<string> {
+    const paths = this.paths("voice");
+    await mkdir(paths.voiceDir, { recursive: true });
+    await writeFile(paths.botCalibrationProfile, `${profile.trim()}\n`, "utf8");
+    return paths.botCalibrationProfile;
+  }
+
+  async readBotCalibrationProfile(): Promise<string> {
+    return (await readOptionalFile(this.paths("voice").botCalibrationProfile)).trim();
+  }
 }
 
 async function readOptionalFile(path: string): Promise<string> {
@@ -108,4 +178,12 @@ async function readOptionalFile(path: string): Promise<string> {
     }
     throw error;
   }
+}
+
+function parseJsonLines<T>(raw: string): T[] {
+  return raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as T);
 }

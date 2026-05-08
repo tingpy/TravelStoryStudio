@@ -44,4 +44,48 @@ describe("FileStoryStore", () => {
     await expect(readFile(exported, "utf8")).resolves.toBe("Export body\n");
     await expect(readFile(store.paths("story-1").outline, "utf8")).resolves.toBe("# Outline\n");
   });
+
+  it("stores friend conversation style and selected bot feedback memory", async () => {
+    const root = await mkdtemp(join(tmpdir(), "travel-story-"));
+    const store = new FileStoryStore(root);
+
+    await store.appendFriendConversationSample({
+      id: "friend-sample-1",
+      rawText: "Friend: you always ask if you are overreacting right when something actually hurt.",
+      createdAt: "2026-05-09T00:00:00.000Z",
+    });
+    await store.saveFriendConversationProfile("# Friend Conversation Style\n\nAsk one precise follow-up before advice.");
+
+    await store.appendBotResponseFeedback({
+      id: "bot-feedback-1",
+      storyId: "story-1",
+      assistantMessageId: "assistant-1",
+      assistantResponse: "That sounds uncomfortable. What happened next?",
+      comment: "This was too generic. Challenge me on why I avoided naming attraction.",
+      createdAt: "2026-05-09T00:00:00.000Z",
+    });
+    await store.saveBotCalibrationProfile(
+      "# Bot Calibration\n\nWhen attraction and discomfort appear together, ask about the contradiction.",
+    );
+
+    await expect(store.readFriendConversationSamples()).resolves.toEqual([
+      {
+        id: "friend-sample-1",
+        rawText: "Friend: you always ask if you are overreacting right when something actually hurt.",
+        createdAt: "2026-05-09T00:00:00.000Z",
+      },
+    ]);
+    await expect(store.readFriendConversationProfile()).resolves.toContain("Ask one precise follow-up");
+    await expect(store.readBotResponseFeedback()).resolves.toEqual([
+      {
+        id: "bot-feedback-1",
+        storyId: "story-1",
+        assistantMessageId: "assistant-1",
+        assistantResponse: "That sounds uncomfortable. What happened next?",
+        comment: "This was too generic. Challenge me on why I avoided naming attraction.",
+        createdAt: "2026-05-09T00:00:00.000Z",
+      },
+    ]);
+    await expect(store.readBotCalibrationProfile()).resolves.toContain("attraction and discomfort");
+  });
 });

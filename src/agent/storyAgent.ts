@@ -4,13 +4,22 @@ import { FileStoryStore } from "../storage/fileStore";
 import {
   DRAFT_SYSTEM_PROMPT,
   FEEDBACK_SYSTEM_PROMPT,
-  INTERVIEW_SYSTEM_PROMPT,
   OUTLINE_SYSTEM_PROMPT,
+  interviewSystemPrompt,
 } from "./prompts";
+import { BOT_CALIBRATION_SYSTEM_PROMPT, FRIEND_CONVERSATION_PROFILE_SYSTEM_PROMPT } from "./voicePrompts";
 
 export interface AgentResult {
   reply: string;
   savedPath?: string;
+  assistantMessageId?: string;
+}
+
+export interface BotResponseFeedbackInput {
+  storyId: string;
+  assistantMessageId: string;
+  assistantResponse: string;
+  comment: string;
 }
 
 export class StoryAgent {
@@ -24,21 +33,23 @@ export class StoryAgent {
     await this.store.createStory(storyId, premise);
     await this.store.appendMessage(storyId, this.message("author", premise));
     const reply = await this.llm.complete({
-      system: INTERVIEW_SYSTEM_PROMPT,
+      system: await this.interviewPrompt(),
       messages: [{ role: "user", content: premise }],
     });
-    await this.store.appendMessage(storyId, this.message("assistant", reply));
-    return { reply };
+    const assistantMessage = this.message("assistant", reply);
+    await this.store.appendMessage(storyId, assistantMessage);
+    return { reply, assistantMessageId: assistantMessage.id };
   }
 
   async chat(storyId: string, content: string): Promise<AgentResult> {
     await this.store.appendMessage(storyId, this.message("author", content));
     const reply = await this.llm.complete({
-      system: INTERVIEW_SYSTEM_PROMPT,
+      system: await this.interviewPrompt(),
       messages: toLlmMessages(await this.store.readMessages(storyId)),
     });
-    await this.store.appendMessage(storyId, this.message("assistant", reply));
-    return { reply };
+    const assistantMessage = this.message("assistant", reply);
+    await this.store.appendMessage(storyId, assistantMessage);
+    return { reply, assistantMessageId: assistantMessage.id };
   }
 
   async outline(storyId: string): Promise<AgentResult> {
@@ -83,10 +94,68 @@ export class StoryAgent {
     return { reply, savedPath };
   }
 
+  async learnFriendConversationStyle(rawChat: string): Promise<AgentResult> {
+    await this.store.appendFriendConversationSample({
+      id: `friend-conversation-${this.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      rawText: rawChat,
+      createdAt: this.now(),
+    });
+
+    const existingProfile = await this.store.readFriendConversationProfile();
+    const reply = await this.llm.complete({
+      system: FRIEND_CONVERSATION_PROFILE_SYSTEM_PROMPT,
+      messages: [
+        { role: "user", content: existingProfile ? `Existing profile:\n${existingProfile}` : "No existing profile yet." },
+        { role: "user", content: `New friend chat excerpts:\n${rawChat}` },
+      ],
+    });
+
+    const savedPath = await this.store.saveFriendConversationProfile(reply);
+    return { reply, savedPath };
+  }
+
+  async calibrateBotResponse(input: BotResponseFeedbackInput): Promise<AgentResult> {
+    await this.store.appendBotResponseFeedback({
+      id: `bot-feedback-${this.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      storyId: input.storyId,
+      assistantMessageId: input.assistantMessageId,
+      assistantResponse: input.assistantResponse,
+      comment: input.comment,
+      createdAt: this.now(),
+    });
+
+    const existingProfile = await this.store.readBotCalibrationProfile();
+    const reply = await this.llm.complete({
+      system: BOT_CALIBRATION_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: existingProfile
+            ? `Existing bot calibration profile:\n${existingProfile}`
+            : "No existing bot calibration profile yet.",
+        },
+        {
+          role: "user",
+          content: `Selected assistant response:\n${input.assistantResponse}\n\nAuthor feedback:\n${input.comment}`,
+        },
+      ],
+    });
+
+    const savedPath = await this.store.saveBotCalibrationProfile(reply);
+    return { reply, savedPath };
+  }
+
   private async contextMessages(storyId: string): Promise<LlmMessage[]> {
     const premise = await this.store.readPremise(storyId);
     const messages = await this.store.readMessages(storyId);
     return [{ role: "user", content: `Story premise:\n${premise}` }, ...toLlmMessages(messages)];
+  }
+
+  private async interviewPrompt(): Promise<string> {
+    return interviewSystemPrompt(
+      await this.store.readFriendConversationProfile(),
+      await this.store.readBotCalibrationProfile(),
+    );
   }
 
   private message(role: ChatMessage["role"], content: string): ChatMessage {

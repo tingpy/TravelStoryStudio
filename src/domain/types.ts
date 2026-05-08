@@ -64,15 +64,26 @@ export interface DraftArtifact {
   createdAt: string;
 }
 
-export interface FriendVoicePack {
-  examples: string[];
-  notes: string[];
+export interface FriendConversationStyleProfile {
+  rawSampleCount: number;
+  profileMarkdown?: string;
+  dimensions: string[];
+  discoveredPatterns: string[];
+  reusableInstructions: string[];
+  exampleMoves: string[];
+  updatedAt?: string;
 }
 
-export interface AuthorVoiceProfile {
-  preferences: string[];
+export interface BotCalibrationProfile {
+  feedbackCount: number;
+  profileMarkdown?: string;
+  challengePreferences: string[];
+  followUpPreferences: string[];
+  missedSignals: string[];
+  responseStyleAdjustments: string[];
   avoidances: string[];
-  readerInterestNotes: string[];
+  concreteInstructions: string[];
+  updatedAt?: string;
 }
 
 export interface FeedbackImport {
@@ -103,8 +114,8 @@ export interface StoryProject {
   outline?: StoryOutline;
   artifacts: DraftArtifact[];
   feedback: FeedbackImport[];
-  friendVoicePack: FriendVoicePack;
-  authorVoiceProfile: AuthorVoiceProfile;
+  friendConversationStyle: FriendConversationStyleProfile;
+  botCalibration: BotCalibrationProfile;
   createdAt: string;
   updatedAt: string;
 }

@@ -9,12 +9,17 @@ interface ApiBody {
   premise?: string;
   content?: string;
   command?: string;
+  rawChat?: string;
+  assistantMessageId?: string;
+  assistantResponse?: string;
+  comment?: string;
 }
 
 export function startMessageServer(options: { port?: number; host?: string } = {}): void {
   const port = options.port ?? Number(process.env.TRAVEL_STORY_PORT ?? 5173);
   const host = options.host ?? process.env.TRAVEL_STORY_HOST ?? "127.0.0.1";
-  const agent = new StoryAgent(new FileStoryStore(process.cwd()), createLlmProvider());
+  const store = new FileStoryStore(process.cwd());
+  const agent = new StoryAgent(store, createLlmProvider());
 
   const server = createServer(async (request, response) => {
     try {
@@ -46,6 +51,36 @@ export function startMessageServer(options: { port?: number; host?: string } = {
         else if (command === "feedback") sendJson(response, await agent.feedback(storyId, body.content ?? ""));
         else if (command === "export") sendJson(response, await agent.exportMarkdown(storyId));
         else sendError(response, 400, `Unknown command: ${command}`);
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/api/friend-conversation-style") {
+        const body = await readJson(request);
+        sendJson(response, await agent.learnFriendConversationStyle(required(body.rawChat, "rawChat")));
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/api/friend-conversation-style") {
+        sendJson(response, { profile: await store.readFriendConversationProfile() });
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/api/bot-feedback") {
+        const body = await readJson(request);
+        sendJson(
+          response,
+          await agent.calibrateBotResponse({
+            storyId: required(body.storyId, "storyId"),
+            assistantMessageId: required(body.assistantMessageId, "assistantMessageId"),
+            assistantResponse: required(body.assistantResponse, "assistantResponse"),
+            comment: required(body.comment, "comment"),
+          }),
+        );
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/api/bot-feedback") {
+        sendJson(response, { profile: await store.readBotCalibrationProfile() });
         return;
       }
 
