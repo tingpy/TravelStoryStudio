@@ -28,6 +28,21 @@ describe("messageAppHtml", () => {
     expect(html).toContain("Give feedback on this response");
   });
 
+  it("includes reply preview and author message edit/delete controls", () => {
+    const html = messageAppHtml();
+
+    expect(html).toContain("Reply");
+    expect(html).toContain("replyPreview");
+    expect(html).toContain("Replying to Bot");
+    expect(html).toContain("replyToMessage");
+    expect(html).toContain("/api/edit-message");
+    expect(html).toContain("/api/delete-message");
+    expect(html).toContain("Edit");
+    expect(html).toContain("Delete");
+    expect(html).toContain("touchstart");
+    expect(html).toContain("contextmenu");
+  });
+
   it("shows story chat context when giving feedback on a specific response", () => {
     const html = messageAppHtml();
 

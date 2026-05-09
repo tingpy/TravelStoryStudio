@@ -12,6 +12,9 @@ interface ApiBody {
   rawChat?: string;
   assistantMessageId?: string;
   assistantResponse?: string;
+  replyToMessageId?: string;
+  replyToContent?: string;
+  messageId?: string;
   comment?: string;
   createStory?: boolean;
 }
@@ -69,8 +72,30 @@ export function startMessageServer(options: { port?: number; host?: string } = {
           required(body.storyId, "storyId"),
           required(body.content, "content"),
           body.createStory === true,
+          body.replyToMessageId && body.replyToContent
+            ? { id: body.replyToMessageId, content: body.replyToContent }
+            : undefined,
         );
         sendJson(response, result);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/edit-message") {
+        const body = await readJson(request);
+        await store.editAuthorMessage(
+          required(body.storyId, "storyId"),
+          required(body.messageId, "messageId"),
+          required(body.content, "content"),
+          new Date().toISOString(),
+        );
+        sendJson(response, await store.readProject(required(body.storyId, "storyId")));
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/delete-message") {
+        const body = await readJson(request);
+        await store.deleteAuthorMessage(required(body.storyId, "storyId"), required(body.messageId, "messageId"));
+        sendJson(response, await store.readProject(required(body.storyId, "storyId")));
         return;
       }
 

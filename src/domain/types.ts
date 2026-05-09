@@ -24,6 +24,9 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: string;
+  replyToMessageId?: string;
+  replyToContent?: string;
+  editedAt?: string;
 }
 
 export interface StoryNote {

@@ -93,6 +93,40 @@ export class FileStoryStore {
       .map((line) => JSON.parse(line) as ChatMessage);
   }
 
+  async editAuthorMessage(storyId: string, messageId: string, content: string, editedAt: string): Promise<void> {
+    const messages = await this.readMessages(storyId);
+    const nextMessages = messages.map((message) => {
+      if (message.id !== messageId) return message;
+      if (message.role !== "author") {
+        throw new Error("Only author messages can be edited.");
+      }
+      return { ...message, content: content.trim(), editedAt };
+    });
+    if (!messages.some((message) => message.id === messageId)) {
+      throw new Error("Message not found.");
+    }
+    await this.writeMessages(storyId, nextMessages);
+  }
+
+  async deleteAuthorMessage(storyId: string, messageId: string): Promise<void> {
+    const messages = await this.readMessages(storyId);
+    const message = messages.find((candidate) => candidate.id === messageId);
+    if (!message) {
+      throw new Error("Message not found.");
+    }
+    if (message.role !== "author") {
+      throw new Error("Only author messages can be deleted.");
+    }
+    await this.writeMessages(storyId, messages.filter((candidate) => candidate.id !== messageId));
+  }
+
+  private async writeMessages(storyId: string, messages: ChatMessage[]): Promise<void> {
+    const paths = this.paths(storyId);
+    await mkdir(paths.storyDir, { recursive: true });
+    const content = messages.map((message) => JSON.stringify(message)).join("\n");
+    await writeFile(paths.chat, content ? `${content}\n` : "", "utf8");
+  }
+
   async saveNotes(storyId: string, notes: StoryNote[]): Promise<void> {
     await writeFile(this.paths(storyId).notes, `${JSON.stringify(notes, null, 2)}\n`, "utf8");
   }

@@ -115,4 +115,35 @@ describe("StoryAgent", () => {
       "But they bought a house together.",
     );
   });
+
+  it("stores replies to assistant responses and sends that context to the interview prompt", async () => {
+    const root = await mkdtemp(join(tmpdir(), "travel-story-agent-"));
+    const store = new FileStoryStore(root);
+    const llm = new FakeLlmProvider(["What part of that contradiction felt hardest to admit?"]);
+    const agent = new StoryAgent(store, llm, () => "2026-05-09T00:00:00.000Z");
+    await store.createStory("story-reply", "A premise.");
+    await store.appendMessage("story-reply", {
+      id: "assistant-1",
+      role: "assistant",
+      content: "What made that reaction feel bigger than the event?",
+      createdAt: "2026-05-09T00:00:00.000Z",
+    });
+
+    await agent.addStoryNote("story-reply", "Because I felt judged and flattered at once.", false, {
+      id: "assistant-1",
+      content: "What made that reaction feel bigger than the event?",
+    });
+    await agent.respondToStory("story-reply");
+
+    const messages = await store.readMessages("story-reply");
+    expect(messages[1]).toEqual(
+      expect.objectContaining({
+        replyToMessageId: "assistant-1",
+        replyToContent: "What made that reaction feel bigger than the event?",
+      }),
+    );
+    expect(llm.requests[0].messages.map((message) => message.content).join("\n")).toContain(
+      'Replying to assistant response: "What made that reaction feel bigger than the event?"',
+    );
+  });
 });

@@ -123,4 +123,55 @@ describe("FileStoryStore", () => {
     await expect(store.listStories()).resolves.toEqual([expect.objectContaining({ id: "story-new" })]);
     await expect(store.readMessages("story-old")).resolves.toEqual([]);
   });
+
+  it("edits and deletes author messages while preserving reply metadata", async () => {
+    const root = await mkdtemp(join(tmpdir(), "travel-story-"));
+    const store = new FileStoryStore(root);
+    await store.createStory("story-1", "A rough premise.");
+    await store.appendMessage("story-1", {
+      id: "assistant-1",
+      role: "assistant",
+      content: "What made that reaction feel bigger than the event?",
+      createdAt: "2026-05-09T00:00:00.000Z",
+    });
+    await store.appendMessage("story-1", {
+      id: "author-1",
+      role: "author",
+      content: "Because I felt judged and flattered at once.",
+      createdAt: "2026-05-09T00:01:00.000Z",
+      replyToMessageId: "assistant-1",
+      replyToContent: "What made that reaction feel bigger than the event?",
+    });
+
+    await store.editAuthorMessage("story-1", "author-1", "Because I felt judged, flattered, and embarrassed.", "2026-05-09T00:02:00.000Z");
+
+    await expect(store.readMessages("story-1")).resolves.toEqual([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: "What made that reaction feel bigger than the event?",
+        createdAt: "2026-05-09T00:00:00.000Z",
+      },
+      {
+        id: "author-1",
+        role: "author",
+        content: "Because I felt judged, flattered, and embarrassed.",
+        createdAt: "2026-05-09T00:01:00.000Z",
+        editedAt: "2026-05-09T00:02:00.000Z",
+        replyToMessageId: "assistant-1",
+        replyToContent: "What made that reaction feel bigger than the event?",
+      },
+    ]);
+
+    await store.deleteAuthorMessage("story-1", "author-1");
+
+    await expect(store.readMessages("story-1")).resolves.toEqual([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: "What made that reaction feel bigger than the event?",
+        createdAt: "2026-05-09T00:00:00.000Z",
+      },
+    ]);
+  });
 });

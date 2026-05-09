@@ -13,6 +13,7 @@ export interface AgentResult {
   reply: string;
   savedPath?: string;
   assistantMessageId?: string;
+  authorMessageId?: string;
 }
 
 export interface BotResponseFeedbackInput {
@@ -20,6 +21,11 @@ export interface BotResponseFeedbackInput {
   assistantMessageId: string;
   assistantResponse: string;
   comment: string;
+}
+
+export interface ReplyTarget {
+  id: string;
+  content: string;
 }
 
 export class StoryAgent {
@@ -52,12 +58,13 @@ export class StoryAgent {
     return { reply, assistantMessageId: assistantMessage.id };
   }
 
-  async addStoryNote(storyId: string, content: string, createStory: boolean): Promise<AgentResult> {
+  async addStoryNote(storyId: string, content: string, createStory: boolean, replyTo?: ReplyTarget): Promise<AgentResult> {
     if (createStory) {
       await this.store.createStory(storyId, content);
     }
-    await this.store.appendMessage(storyId, this.message("author", content));
-    return { reply: "" };
+    const authorMessage = this.message("author", content, replyTo);
+    await this.store.appendMessage(storyId, authorMessage);
+    return { reply: "", authorMessageId: authorMessage.id };
   }
 
   async respondToStory(storyId: string): Promise<AgentResult> {
@@ -176,19 +183,27 @@ export class StoryAgent {
     );
   }
 
-  private message(role: ChatMessage["role"], content: string): ChatMessage {
-    return {
+  private message(role: ChatMessage["role"], content: string, replyTo?: ReplyTarget): ChatMessage {
+    const message: ChatMessage = {
       id: `${role}-${this.now()}-${Math.random().toString(36).slice(2, 8)}`,
       role,
       content,
       createdAt: this.now(),
     };
+    if (replyTo) {
+      message.replyToMessageId = replyTo.id;
+      message.replyToContent = replyTo.content;
+    }
+    return message;
   }
 }
 
 function toLlmMessages(messages: ChatMessage[]): LlmMessage[] {
   return messages.map((message) => ({
     role: message.role === "author" ? "user" : "assistant",
-    content: message.content,
+    content:
+      message.role === "author" && message.replyToContent
+        ? `Replying to assistant response: "${message.replyToContent}"\n\n${message.content}`
+        : message.content,
   }));
 }

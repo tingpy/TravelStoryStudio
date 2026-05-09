@@ -181,6 +181,122 @@ export function messageAppHtml(): string {
         padding: 2px;
       }
 
+      .bubble-actions {
+        display: flex;
+        gap: 8px;
+        margin: 3px 8px 0;
+      }
+
+      .bubble-action {
+        background: transparent;
+        border: 0;
+        color: #6e6e73;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 2px;
+      }
+
+      .author-reply-stack {
+        align-items: flex-end;
+        display: flex;
+        flex-direction: column;
+        max-width: min(700px, 78%);
+        position: relative;
+      }
+
+      .author-reply-stack::before {
+        border-bottom: 3px solid #d1d1d6;
+        border-left: 3px solid #d1d1d6;
+        border-radius: 0 0 0 18px;
+        bottom: 22px;
+        content: "";
+        height: 22px;
+        left: 8px;
+        position: absolute;
+        width: 48px;
+      }
+
+      .author-reply-quote {
+        align-self: flex-start;
+        border: 1px solid #d1d1d6;
+        border-radius: 16px;
+        color: #8e8e93;
+        font-size: 12px;
+        line-height: 1.25;
+        margin: 0 0 6px 58px;
+        max-width: 78%;
+        overflow: hidden;
+        padding: 6px 9px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .author-reply-stack .bubble {
+        max-width: 100%;
+      }
+
+      .reply-preview {
+        align-items: center;
+        background: #f2f2f7;
+        border: 1px solid #d1d1d6;
+        border-radius: 14px;
+        color: #6e6e73;
+        display: grid;
+        gap: 2px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding: 7px 10px;
+      }
+
+      .reply-preview[hidden] {
+        display: none;
+      }
+
+      .reply-preview strong {
+        color: #1d1d1f;
+        display: block;
+        font-size: 12px;
+      }
+
+      .reply-preview span {
+        display: block;
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .reply-preview button,
+      .message-menu button {
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+      }
+
+      .message-menu {
+        background: #ffffff;
+        border: 1px solid #d1d1d6;
+        border-radius: 8px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+        display: flex;
+        gap: 4px;
+        padding: 5px;
+        position: fixed;
+        z-index: 10;
+      }
+
+      .message-menu[hidden] {
+        display: none;
+      }
+
+      .message-menu button {
+        border-radius: 6px;
+        padding: 6px 9px;
+      }
+
+      .message-menu button:hover {
+        background: #f2f2f7;
+      }
+
       .feedback-context .bubble {
         background: #fff7df;
         border: 1px solid #f2d28a;
@@ -297,12 +413,23 @@ export function messageAppHtml(): string {
             <button type="button" data-command="friendStyle" data-memory-mode="friendStyle">Friend Style Import</button>
             <button type="button" data-memory-mode="reflection">Reflection Skills</button>
           </div>
+          <div id="replyPreview" class="reply-preview" hidden>
+            <div>
+              <strong>Replying to Bot</strong>
+              <span id="replyPreviewText"></span>
+            </div>
+            <button id="cancelReply" type="button" aria-label="Cancel reply">x</button>
+          </div>
           <div class="input-row">
             <textarea id="input" placeholder="Send story fragments. I may jump in when something feels important..."></textarea>
             <button class="send" type="submit">Send</button>
           </div>
         </form>
       </section>
+      <div id="messageMenu" class="message-menu" hidden>
+        <button id="editMessage" type="button">Edit</button>
+        <button id="deleteMessage" type="button">Delete</button>
+      </div>
     </main>
 
     <script>
@@ -315,6 +442,12 @@ export function messageAppHtml(): string {
       const storyListEl = document.querySelector("#storyList");
       const storyIdEl = document.querySelector("#storyId");
       const workspaceTitleEl = document.querySelector("#workspaceTitle");
+      const replyPreviewEl = document.querySelector("#replyPreview");
+      const replyPreviewTextEl = document.querySelector("#replyPreviewText");
+      const cancelReplyEl = document.querySelector("#cancelReply");
+      const messageMenuEl = document.querySelector("#messageMenu");
+      const editMessageEl = document.querySelector("#editMessage");
+      const deleteMessageEl = document.querySelector("#deleteMessage");
       const toolbars = {
         story: document.querySelector("#storyToolbar"),
         draft: document.querySelector("#draftToolbar"),
@@ -360,8 +493,11 @@ export function messageAppHtml(): string {
       let feedbackMode = "general";
       let memoryMode = "friendStyle";
       let selectedAssistantMessage = null;
+      let replyToMessage = null;
+      let menuMessageId = null;
       let storyTranscript = [];
       let responseTimer = null;
+      let longPressTimer = null;
       storyIdEl.textContent = storyId;
 
       function activeMessages() {
@@ -377,20 +513,44 @@ export function messageAppHtml(): string {
         const bubble = document.createElement("div");
         bubble.className = "bubble";
         bubble.textContent = content;
-        row.appendChild(bubble);
+        if (role === "author" && metadata.replyToContent) {
+          const stack = document.createElement("div");
+          stack.className = "author-reply-stack";
+          const quote = document.createElement("div");
+          quote.className = "author-reply-quote";
+          quote.textContent = metadata.replyToContent;
+          stack.appendChild(quote);
+          stack.appendChild(bubble);
+          row.appendChild(stack);
+        } else {
+          row.appendChild(bubble);
+        }
         if (targetName === "story" && !metadata.skipTranscript) {
-          recordStoryMessage(role, content, metadata.messageId);
+          recordStoryMessage({
+            role,
+            content,
+            messageId: metadata.messageId,
+            replyToMessageId: metadata.replyToMessageId,
+            replyToContent: metadata.replyToContent,
+          });
         }
         if (role === "assistant" && metadata.messageId && metadata.feedbackEnabled) {
           addFeedbackButton(row, metadata.messageId, content, metadata.feedbackLabel);
+        }
+        if (role === "assistant" && metadata.messageId && metadata.replyEnabled) {
+          addReplyButton(row, metadata.messageId, content);
+          addSwipeReply(row, metadata.messageId, content);
+        }
+        if (targetName === "story" && role === "author" && metadata.messageId) {
+          addAuthorMessageMenu(row, metadata.messageId, content);
         }
         container.appendChild(row);
         container.parentElement.scrollTop = container.parentElement.scrollHeight;
         return row;
       }
 
-      function recordStoryMessage(role, content, messageId = "") {
-        storyTranscript.push({ role, content, messageId });
+      function recordStoryMessage(message) {
+        storyTranscript.push(message);
         if (storyTranscript.length > 80) storyTranscript = storyTranscript.slice(-80);
       }
 
@@ -428,10 +588,8 @@ export function messageAppHtml(): string {
       }
 
       function addFeedbackButton(row, messageId, content, label = "Give feedback on this response") {
-        const feedbackButton = document.createElement("button");
+        const feedbackButton = bubbleActionButton(label);
         feedbackButton.type = "button";
-        feedbackButton.className = "bubble-feedback";
-        feedbackButton.textContent = label;
         feedbackButton.addEventListener("click", () => {
           selectedAssistantMessage = { id: messageId, content };
           feedbackMode = "specific";
@@ -440,7 +598,98 @@ export function messageAppHtml(): string {
           inputEl.placeholder = "Specific Comment: what should this response have done differently?";
           inputEl.focus();
         });
-        row.appendChild(feedbackButton);
+        bubbleActions(row).appendChild(feedbackButton);
+      }
+
+      function addReplyButton(row, messageId, content) {
+        const replyButton = bubbleActionButton("Reply");
+        replyButton.addEventListener("click", () => selectReplyTarget(messageId, content));
+        bubbleActions(row).appendChild(replyButton);
+      }
+
+      function bubbleActionButton(label) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "bubble-action bubble-feedback";
+        button.textContent = label;
+        return button;
+      }
+
+      function bubbleActions(row) {
+        let actions = row.querySelector(".bubble-actions");
+        if (!actions) {
+          actions = document.createElement("div");
+          actions.className = "bubble-actions";
+          row.appendChild(actions);
+        }
+        return actions;
+      }
+
+      function selectReplyTarget(messageId, content) {
+        replyToMessage = { id: messageId, content };
+        replyPreviewTextEl.textContent = content;
+        replyPreviewEl.hidden = false;
+        inputEl.placeholder = "Reply to this bot response...";
+        inputEl.focus();
+      }
+
+      function clearReplyTarget() {
+        replyToMessage = null;
+        replyPreviewTextEl.textContent = "";
+        replyPreviewEl.hidden = true;
+        inputEl.placeholder = placeholders[activeTab];
+      }
+
+      function addSwipeReply(row, messageId, content) {
+        let startX = 0;
+        row.addEventListener("touchstart", (event) => {
+          startX = event.touches[0]?.clientX ?? 0;
+        });
+        row.addEventListener("touchend", (event) => {
+          const endX = event.changedTouches[0]?.clientX ?? startX;
+          if (endX - startX > 50) selectReplyTarget(messageId, content);
+        });
+      }
+
+      function addAuthorMessageMenu(row, messageId, content) {
+        row.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          showMessageMenu(messageId, content, event.clientX, event.clientY);
+        });
+        row.addEventListener("touchstart", (event) => {
+          const touch = event.touches[0];
+          longPressTimer = setTimeout(() => {
+            showMessageMenu(messageId, content, touch?.clientX ?? 20, touch?.clientY ?? 20);
+          }, 900);
+        });
+        row.addEventListener("touchend", clearLongPress);
+        row.addEventListener("touchmove", clearLongPress);
+        row.addEventListener("mousedown", (event) => {
+          if (event.button !== 0) return;
+          longPressTimer = setTimeout(() => showMessageMenu(messageId, content, event.clientX, event.clientY), 900);
+        });
+        row.addEventListener("mouseup", clearLongPress);
+        row.addEventListener("mouseleave", clearLongPress);
+      }
+
+      function clearLongPress() {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      }
+
+      function showMessageMenu(messageId, content, x, y) {
+        menuMessageId = messageId;
+        messageMenuEl.dataset.content = content;
+        messageMenuEl.style.left = Math.min(x, window.innerWidth - 150) + "px";
+        messageMenuEl.style.top = Math.min(y, window.innerHeight - 60) + "px";
+        messageMenuEl.hidden = false;
+      }
+
+      function hideMessageMenu() {
+        menuMessageId = null;
+        messageMenuEl.hidden = true;
       }
 
       async function post(path, body) {
@@ -463,6 +712,7 @@ export function messageAppHtml(): string {
 
       function switchTab(tab) {
         activeTab = tab;
+        if (tab !== "story" && replyToMessage) clearReplyTarget();
         document.querySelectorAll("[data-tab]").forEach((button) => {
           button.classList.toggle("active", button.dataset.tab === tab);
         });
@@ -482,6 +732,7 @@ export function messageAppHtml(): string {
         storyId = "story-" + Date.now();
         started = false;
         selectedAssistantMessage = null;
+        clearReplyTarget();
         storyTranscript = [];
         storyIdEl.textContent = storyId;
         storyMessagesEl.innerHTML = "";
@@ -539,6 +790,9 @@ export function messageAppHtml(): string {
           addBubble("story", message.role, message.content, {
             messageId: message.id,
             feedbackEnabled: message.role === "assistant",
+            replyEnabled: message.role === "assistant",
+            replyToMessageId: message.replyToMessageId,
+            replyToContent: message.replyToContent,
           });
         });
         switchTab("story");
@@ -565,8 +819,23 @@ export function messageAppHtml(): string {
       }
 
       async function saveStoryNote(content) {
-        addBubble("story", "author", content);
-        await post("/api/note", { storyId, content, createStory: !started });
+        const replyTarget = replyToMessage;
+        const row = addBubble("story", "author", content, {
+          replyToMessageId: replyTarget?.id,
+          replyToContent: replyTarget?.content,
+        });
+        const data = await post("/api/note", {
+          storyId,
+          content,
+          createStory: !started,
+          replyToMessageId: replyTarget?.id,
+          replyToContent: replyTarget?.content,
+        });
+        if (data.authorMessageId) {
+          row.dataset.messageId = data.authorMessageId;
+          addAuthorMessageMenu(row, data.authorMessageId, content);
+        }
+        clearReplyTarget();
         started = true;
         await loadStories();
         scheduleAdaptiveReply(content);
@@ -579,10 +848,12 @@ export function messageAppHtml(): string {
         try {
           const data = await post("/api/respond", { storyId });
           thinking.querySelector(".bubble").textContent = data.reply;
-          recordStoryMessage("assistant", data.reply, data.assistantMessageId);
+          recordStoryMessage({ role: "assistant", content: data.reply, messageId: data.assistantMessageId });
           if (data.assistantMessageId) {
             thinking.dataset.messageId = data.assistantMessageId;
             addFeedbackButton(thinking, data.assistantMessageId, data.reply);
+            addReplyButton(thinking, data.assistantMessageId, data.reply);
+            addSwipeReply(thinking, data.assistantMessageId, data.reply);
           }
           await loadStories();
         } catch (error) {
@@ -672,6 +943,41 @@ export function messageAppHtml(): string {
       document.querySelector("#keepListening").addEventListener("click", () => {
         clearPendingResponse();
         addBubble("story", "assistant", "I will keep listening.");
+      });
+
+      cancelReplyEl.addEventListener("click", clearReplyTarget);
+
+      editMessageEl.addEventListener("click", async () => {
+        if (!menuMessageId) return;
+        const id = menuMessageId;
+        const currentContent = messageMenuEl.dataset.content ?? "";
+        const nextContent = prompt("Edit message", currentContent);
+        hideMessageMenu();
+        if (!nextContent?.trim()) return;
+        try {
+          await post("/api/edit-message", { storyId, messageId: id, content: nextContent });
+          await openStory(storyId);
+        } catch (error) {
+          addBubble("story", "assistant", error.message);
+        }
+      });
+
+      deleteMessageEl.addEventListener("click", async () => {
+        if (!menuMessageId) return;
+        const id = menuMessageId;
+        hideMessageMenu();
+        if (!confirm("Delete this sent message?")) return;
+        try {
+          await post("/api/delete-message", { storyId, messageId: id });
+          await openStory(storyId);
+          await loadStories();
+        } catch (error) {
+          addBubble("story", "assistant", error.message);
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!messageMenuEl.contains(event.target)) hideMessageMenu();
       });
 
       document.querySelectorAll("[data-draft-command]").forEach((button) => {
