@@ -41,6 +41,7 @@ describe("messageAppHtml", () => {
     expect(html).toContain("Delete");
     expect(html).toContain("touchstart");
     expect(html).toContain("contextmenu");
+    expect(html).toContain("suppressNextDocumentClick");
   });
 
   it("shows story chat context when giving feedback on a specific response", () => {

@@ -498,6 +498,7 @@ export function messageAppHtml(): string {
       let storyTranscript = [];
       let responseTimer = null;
       let longPressTimer = null;
+      let suppressNextDocumentClick = false;
       storyIdEl.textContent = storyId;
 
       function activeMessages() {
@@ -659,14 +660,14 @@ export function messageAppHtml(): string {
         row.addEventListener("touchstart", (event) => {
           const touch = event.touches[0];
           longPressTimer = setTimeout(() => {
-            showMessageMenu(messageId, content, touch?.clientX ?? 20, touch?.clientY ?? 20);
+            showMessageMenu(messageId, content, touch?.clientX ?? 20, touch?.clientY ?? 20, true);
           }, 900);
         });
         row.addEventListener("touchend", clearLongPress);
         row.addEventListener("touchmove", clearLongPress);
         row.addEventListener("mousedown", (event) => {
           if (event.button !== 0) return;
-          longPressTimer = setTimeout(() => showMessageMenu(messageId, content, event.clientX, event.clientY), 900);
+          longPressTimer = setTimeout(() => showMessageMenu(messageId, content, event.clientX, event.clientY, true), 900);
         });
         row.addEventListener("mouseup", clearLongPress);
         row.addEventListener("mouseleave", clearLongPress);
@@ -679,8 +680,9 @@ export function messageAppHtml(): string {
         }
       }
 
-      function showMessageMenu(messageId, content, x, y) {
+      function showMessageMenu(messageId, content, x, y, suppressReleaseClick = false) {
         menuMessageId = messageId;
+        suppressNextDocumentClick = suppressReleaseClick;
         messageMenuEl.dataset.content = content;
         messageMenuEl.style.left = Math.min(x, window.innerWidth - 150) + "px";
         messageMenuEl.style.top = Math.min(y, window.innerHeight - 60) + "px";
@@ -977,6 +979,10 @@ export function messageAppHtml(): string {
       });
 
       document.addEventListener("click", (event) => {
+        if (suppressNextDocumentClick) {
+          suppressNextDocumentClick = false;
+          return;
+        }
         if (!messageMenuEl.contains(event.target)) hideMessageMenu();
       });
 
