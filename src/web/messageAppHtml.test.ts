@@ -28,6 +28,15 @@ describe("messageAppHtml", () => {
     expect(html).toContain("Give feedback on this response");
   });
 
+  it("shows story chat context when giving feedback on a specific response", () => {
+    const html = messageAppHtml();
+
+    expect(html).toContain("storyTranscript");
+    expect(html).toContain("renderFeedbackContext");
+    expect(html).toContain("Selected response");
+    expect(html).toContain("Recent story chat");
+  });
+
   it("includes controls for continuing and deleting old chats", () => {
     const html = messageAppHtml();
 
@@ -41,6 +50,7 @@ describe("messageAppHtml", () => {
   it("includes tabbed workspaces and adaptive story controls", () => {
     const html = messageAppHtml();
 
+    expect(html).toContain(".toolbar[hidden]");
     expect(html).toContain('data-tab="story"');
     expect(html).toContain('data-tab="draft"');
     expect(html).toContain('data-tab="feedback"');

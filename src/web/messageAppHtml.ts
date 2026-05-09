@@ -181,6 +181,12 @@ export function messageAppHtml(): string {
         padding: 2px;
       }
 
+      .feedback-context .bubble {
+        background: #fff7df;
+        border: 1px solid #f2d28a;
+        color: #1d1d1f;
+      }
+
       .composer {
         border-top: 1px solid #e5e5ea;
         display: grid;
@@ -192,6 +198,10 @@ export function messageAppHtml(): string {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+      }
+
+      .toolbar[hidden] {
+        display: none;
       }
 
       .toolbar button,
@@ -346,6 +356,7 @@ export function messageAppHtml(): string {
       let feedbackMode = "general";
       let memoryMode = "friendStyle";
       let selectedAssistantMessage = null;
+      let storyTranscript = [];
       let responseTimer = null;
       storyIdEl.textContent = storyId;
 
@@ -355,6 +366,7 @@ export function messageAppHtml(): string {
 
       function addBubble(target, role, content, metadata = {}) {
         const container = typeof target === "string" ? messageEls[target] : target;
+        const targetName = typeof target === "string" ? target : "";
         const row = document.createElement("div");
         row.className = "bubble-row " + role;
         if (metadata.messageId) row.dataset.messageId = metadata.messageId;
@@ -362,12 +374,36 @@ export function messageAppHtml(): string {
         bubble.className = "bubble";
         bubble.textContent = content;
         row.appendChild(bubble);
+        if (targetName === "story" && !metadata.skipTranscript) {
+          recordStoryMessage(role, content, metadata.messageId);
+        }
         if (role === "assistant" && metadata.messageId && metadata.feedbackEnabled) {
           addFeedbackButton(row, metadata.messageId, content);
         }
         container.appendChild(row);
         container.parentElement.scrollTop = container.parentElement.scrollHeight;
         return row;
+      }
+
+      function recordStoryMessage(role, content, messageId = "") {
+        storyTranscript.push({ role, content, messageId });
+        if (storyTranscript.length > 80) storyTranscript = storyTranscript.slice(-80);
+      }
+
+      function renderFeedbackContext() {
+        feedbackMessagesEl.querySelectorAll("[data-feedback-context]").forEach((node) => node.remove());
+        if (feedbackMode !== "specific" || !selectedAssistantMessage) return;
+
+        const recentStoryChat = storyTranscript
+          .filter((message) => message.content !== selectedAssistantMessage.content)
+          .slice(-8)
+          .map((message) => (message.role === "author" ? "You: " : "Bot: ") + message.content)
+          .join("\\n\\n");
+        const context = "Selected response:\\n" + selectedAssistantMessage.content
+          + "\\n\\nRecent story chat:\\n" + (recentStoryChat || "No previous story messages yet.");
+        const row = addBubble("feedback", "assistant", context);
+        row.classList.add("feedback-context");
+        row.dataset.feedbackContext = "true";
       }
 
       function addFeedbackButton(row, messageId, content) {
@@ -378,6 +414,7 @@ export function messageAppHtml(): string {
         feedbackButton.addEventListener("click", () => {
           selectedAssistantMessage = { id: messageId, content };
           feedbackMode = "specific";
+          renderFeedbackContext();
           switchTab("feedback");
           inputEl.placeholder = "Specific Comment: what should this response have done differently?";
           inputEl.focus();
@@ -424,6 +461,7 @@ export function messageAppHtml(): string {
         storyId = "story-" + Date.now();
         started = false;
         selectedAssistantMessage = null;
+        storyTranscript = [];
         storyIdEl.textContent = storyId;
         storyMessagesEl.innerHTML = "";
         draftMessagesEl.innerHTML = "";
@@ -473,6 +511,7 @@ export function messageAppHtml(): string {
         storyId = project.id;
         started = true;
         selectedAssistantMessage = null;
+        storyTranscript = [];
         storyIdEl.textContent = storyId;
         storyMessagesEl.innerHTML = "";
         project.messages.forEach((message) => {
@@ -515,10 +554,11 @@ export function messageAppHtml(): string {
       async function requestStoryResponse() {
         clearPendingResponse();
         if (!started) return;
-        const thinking = addBubble("story", "assistant", "Thinking...");
+        const thinking = addBubble("story", "assistant", "Thinking...", { skipTranscript: true });
         try {
           const data = await post("/api/respond", { storyId });
           thinking.querySelector(".bubble").textContent = data.reply;
+          recordStoryMessage("assistant", data.reply, data.assistantMessageId);
           if (data.assistantMessageId) {
             thinking.dataset.messageId = data.assistantMessageId;
             addFeedbackButton(thinking, data.assistantMessageId, data.reply);
@@ -620,6 +660,8 @@ export function messageAppHtml(): string {
       document.querySelectorAll("[data-feedback-mode]").forEach((button) => {
         button.addEventListener("click", () => {
           feedbackMode = button.dataset.feedbackMode;
+          if (feedbackMode === "specific") renderFeedbackContext();
+          else feedbackMessagesEl.querySelectorAll("[data-feedback-context]").forEach((node) => node.remove());
           inputEl.placeholder = feedbackMode === "specific"
             ? "Specific Comment: choose a response or describe which one you mean..."
             : "General Advice: comment on the whole chat, draft, or interview vibe...";
