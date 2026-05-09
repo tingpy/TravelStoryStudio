@@ -32,9 +32,10 @@ describe("messageAppHtml", () => {
     const html = messageAppHtml();
 
     expect(html).toContain("storyTranscript");
-    expect(html).toContain("renderFeedbackContext");
+    expect(html).toContain("renderFeedbackStoryContext");
     expect(html).toContain("Selected response");
-    expect(html).toContain("Recent story chat");
+    expect(html).toContain("Chat from Story Room");
+    expect(html).toContain("Comment on this response");
   });
 
   it("includes controls for continuing and deleting old chats", () => {

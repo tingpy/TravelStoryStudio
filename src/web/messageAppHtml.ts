@@ -187,6 +187,10 @@ export function messageAppHtml(): string {
         color: #1d1d1f;
       }
 
+      .feedback-story-context .bubble {
+        border: 1px solid #d1d1d6;
+      }
+
       .composer {
         border-top: 1px solid #e5e5ea;
         display: grid;
@@ -378,7 +382,7 @@ export function messageAppHtml(): string {
           recordStoryMessage(role, content, metadata.messageId);
         }
         if (role === "assistant" && metadata.messageId && metadata.feedbackEnabled) {
-          addFeedbackButton(row, metadata.messageId, content);
+          addFeedbackButton(row, metadata.messageId, content, metadata.feedbackLabel);
         }
         container.appendChild(row);
         container.parentElement.scrollTop = container.parentElement.scrollHeight;
@@ -390,31 +394,48 @@ export function messageAppHtml(): string {
         if (storyTranscript.length > 80) storyTranscript = storyTranscript.slice(-80);
       }
 
-      function renderFeedbackContext() {
+      function clearFeedbackContext() {
         feedbackMessagesEl.querySelectorAll("[data-feedback-context]").forEach((node) => node.remove());
-        if (feedbackMode !== "specific" || !selectedAssistantMessage) return;
-
-        const recentStoryChat = storyTranscript
-          .filter((message) => message.content !== selectedAssistantMessage.content)
-          .slice(-8)
-          .map((message) => (message.role === "author" ? "You: " : "Bot: ") + message.content)
-          .join("\\n\\n");
-        const context = "Selected response:\\n" + selectedAssistantMessage.content
-          + "\\n\\nRecent story chat:\\n" + (recentStoryChat || "No previous story messages yet.");
-        const row = addBubble("feedback", "assistant", context);
-        row.classList.add("feedback-context");
-        row.dataset.feedbackContext = "true";
       }
 
-      function addFeedbackButton(row, messageId, content) {
+      function renderFeedbackStoryContext() {
+        clearFeedbackContext();
+        if (feedbackMode !== "specific") return;
+
+        const intro = selectedAssistantMessage
+          ? "Selected response:\\n" + selectedAssistantMessage.content + "\\n\\nChat from Story Room:"
+          : "Chat from Story Room:\\nChoose a bot response below, then type what you wanted the chatbot to do differently.";
+        const introRow = addBubble("feedback", "assistant", intro);
+        introRow.classList.add("feedback-context");
+        introRow.dataset.feedbackContext = "true";
+
+        if (storyTranscript.length === 0) {
+          const emptyRow = addBubble("feedback", "assistant", "No story chat yet.");
+          emptyRow.classList.add("feedback-story-context");
+          emptyRow.dataset.feedbackContext = "true";
+          return;
+        }
+
+        storyTranscript.forEach((message) => {
+          const row = addBubble("feedback", message.role, message.content, {
+            messageId: message.messageId,
+            feedbackEnabled: message.role === "assistant" && Boolean(message.messageId),
+            feedbackLabel: "Comment on this response",
+          });
+          row.classList.add("feedback-story-context");
+          row.dataset.feedbackContext = "true";
+        });
+      }
+
+      function addFeedbackButton(row, messageId, content, label = "Give feedback on this response") {
         const feedbackButton = document.createElement("button");
         feedbackButton.type = "button";
         feedbackButton.className = "bubble-feedback";
-        feedbackButton.textContent = "Give feedback on this response";
+        feedbackButton.textContent = label;
         feedbackButton.addEventListener("click", () => {
           selectedAssistantMessage = { id: messageId, content };
           feedbackMode = "specific";
-          renderFeedbackContext();
+          renderFeedbackStoryContext();
           switchTab("feedback");
           inputEl.placeholder = "Specific Comment: what should this response have done differently?";
           inputEl.focus();
@@ -660,8 +681,8 @@ export function messageAppHtml(): string {
       document.querySelectorAll("[data-feedback-mode]").forEach((button) => {
         button.addEventListener("click", () => {
           feedbackMode = button.dataset.feedbackMode;
-          if (feedbackMode === "specific") renderFeedbackContext();
-          else feedbackMessagesEl.querySelectorAll("[data-feedback-context]").forEach((node) => node.remove());
+          if (feedbackMode === "specific") renderFeedbackStoryContext();
+          else clearFeedbackContext();
           inputEl.placeholder = feedbackMode === "specific"
             ? "Specific Comment: choose a response or describe which one you mean..."
             : "General Advice: comment on the whole chat, draft, or interview vibe...";
