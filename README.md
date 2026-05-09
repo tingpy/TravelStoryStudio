@@ -45,6 +45,13 @@ Open:
 http://127.0.0.1:5173/
 ```
 
+The UI is organized into tabs above the main workspace:
+
+- `Story Room` is the active friend/journaling space. Sending a fragment saves it immediately without forcing a reply every time. The bot responds after an adaptive pause, sooner for direct questions or tension markers, or immediately with `Ask Now`. `Keep Listening` cancels the pending reply.
+- `Draft Studio` is a separate chatbox for story angle, outline, draft, edit, and title work.
+- `Feedback` is a separate chatbox for specific comments on a selected bot response or general advice about the whole chat/draft. After feedback is absorbed, it shows the updated prompt/profile layer.
+- `Memory` is a separate chatbox for Friend Style imports and Reflection Skills.
+
 Provider options:
 
 ```bash

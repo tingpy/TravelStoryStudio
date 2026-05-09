@@ -52,6 +52,24 @@ export class StoryAgent {
     return { reply, assistantMessageId: assistantMessage.id };
   }
 
+  async addStoryNote(storyId: string, content: string, createStory: boolean): Promise<AgentResult> {
+    if (createStory) {
+      await this.store.createStory(storyId, content);
+    }
+    await this.store.appendMessage(storyId, this.message("author", content));
+    return { reply: "" };
+  }
+
+  async respondToStory(storyId: string): Promise<AgentResult> {
+    const reply = await this.llm.complete({
+      system: await this.interviewPrompt(),
+      messages: toLlmMessages(await this.store.readMessages(storyId)),
+    });
+    const assistantMessage = this.message("assistant", reply);
+    await this.store.appendMessage(storyId, assistantMessage);
+    return { reply, assistantMessageId: assistantMessage.id };
+  }
+
   async outline(storyId: string): Promise<AgentResult> {
     const reply = await this.llm.complete({
       system: OUTLINE_SYSTEM_PROMPT,

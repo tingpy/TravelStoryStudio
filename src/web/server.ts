@@ -13,6 +13,7 @@ interface ApiBody {
   assistantMessageId?: string;
   assistantResponse?: string;
   comment?: string;
+  createStory?: boolean;
 }
 
 export function startMessageServer(options: { port?: number; host?: string } = {}): void {
@@ -59,6 +60,23 @@ export function startMessageServer(options: { port?: number; host?: string } = {
         const body = await readJson(request);
         const result = await agent.chat(required(body.storyId, "storyId"), required(body.content, "content"));
         sendJson(response, result);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/note") {
+        const body = await readJson(request);
+        const result = await agent.addStoryNote(
+          required(body.storyId, "storyId"),
+          required(body.content, "content"),
+          body.createStory === true,
+        );
+        sendJson(response, result);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/respond") {
+        const body = await readJson(request);
+        sendJson(response, await agent.respondToStory(required(body.storyId, "storyId")));
         return;
       }
 

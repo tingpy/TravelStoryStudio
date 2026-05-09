@@ -93,4 +93,26 @@ describe("StoryAgent", () => {
     expect(llm.requests[0].system).toContain("Ask one precise follow-up");
     expect(llm.requests[0].system).toContain("Challenge more when I simplify people");
   });
+
+  it("can save story notes without replying and respond later", async () => {
+    const root = await mkdtemp(join(tmpdir(), "travel-story-agent-"));
+    const store = new FileStoryStore(root);
+    const llm = new FakeLlmProvider(["Wait, that contradiction feels important. What made it stick?"]);
+    const agent = new StoryAgent(store, llm, () => "2026-05-09T00:00:00.000Z");
+
+    await agent.addStoryNote("story-adaptive", "He said they had not had sex in 10 years.", true);
+    await agent.addStoryNote("story-adaptive", "But they bought a house together.", false);
+
+    expect(llm.requests).toHaveLength(0);
+    await expect(store.readMessages("story-adaptive")).resolves.toHaveLength(2);
+
+    const result = await agent.respondToStory("story-adaptive");
+
+    expect(result.reply).toContain("contradiction");
+    expect(result.assistantMessageId).toContain("assistant-");
+    await expect(store.readMessages("story-adaptive")).resolves.toHaveLength(3);
+    expect(llm.requests[0].messages.map((message) => message.content).join("\n")).toContain(
+      "But they bought a house together.",
+    );
+  });
 });

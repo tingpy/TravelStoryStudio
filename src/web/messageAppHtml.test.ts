@@ -37,4 +37,32 @@ describe("messageAppHtml", () => {
     expect(html).toContain("/api/delete-story");
     expect(html).toContain("Delete chat");
   });
+
+  it("includes tabbed workspaces and adaptive story controls", () => {
+    const html = messageAppHtml();
+
+    expect(html).toContain('data-tab="story"');
+    expect(html).toContain('data-tab="draft"');
+    expect(html).toContain('data-tab="feedback"');
+    expect(html).toContain('data-tab="memory"');
+    expect(html).toContain('id="storyMessages"');
+    expect(html).toContain('id="draftMessages"');
+    expect(html).toContain('id="feedbackMessages"');
+    expect(html).toContain('id="memoryMessages"');
+    expect(html).toContain('id="askNow"');
+    expect(html).toContain('id="keepListening"');
+    expect(html).toContain("/api/note");
+    expect(html).toContain("/api/respond");
+    expect(html).toContain("scheduleAdaptiveReply");
+  });
+
+  it("includes feedback and memory profile surfaces", () => {
+    const html = messageAppHtml();
+
+    expect(html).toContain("Specific Comment");
+    expect(html).toContain("General Advice");
+    expect(html).toContain("Updated prompt/profile layer");
+    expect(html).toContain("Friend Style Import");
+    expect(html).toContain("Reflection Skills");
+  });
 });

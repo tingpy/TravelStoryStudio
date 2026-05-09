@@ -18,7 +18,7 @@ export function messageAppHtml(): string {
 
       .shell {
         display: grid;
-        grid-template-columns: 260px minmax(0, 1fr);
+        grid-template-columns: 270px minmax(0, 1fr);
         height: 100vh;
       }
 
@@ -26,6 +26,7 @@ export function messageAppHtml(): string {
         border-right: 1px solid #d1d1d6;
         background: #ececf1;
         padding: 18px;
+        overflow-y: auto;
       }
 
       .sidebar h1 {
@@ -33,7 +34,8 @@ export function messageAppHtml(): string {
         margin: 0 0 16px;
       }
 
-      .story-card {
+      .story-card,
+      .story-item {
         background: #ffffff;
         border: 1px solid #d8d8de;
         border-radius: 8px;
@@ -42,7 +44,10 @@ export function messageAppHtml(): string {
 
       .new-chat,
       .story-open,
-      .story-delete {
+      .story-delete,
+      .tab-button,
+      .toolbar button,
+      .send {
         border: 0;
         border-radius: 8px;
         cursor: pointer;
@@ -63,12 +68,8 @@ export function messageAppHtml(): string {
       }
 
       .story-item {
-        background: #ffffff;
-        border: 1px solid #d8d8de;
-        border-radius: 8px;
         display: grid;
         gap: 6px;
-        padding: 10px;
       }
 
       .story-open {
@@ -87,7 +88,7 @@ export function messageAppHtml(): string {
         padding: 0;
       }
 
-      .chat {
+      .workspace {
         display: grid;
         grid-template-rows: auto 1fr auto;
         min-width: 0;
@@ -96,16 +97,44 @@ export function messageAppHtml(): string {
 
       .topbar {
         border-bottom: 1px solid #e5e5ea;
-        padding: 14px 18px;
+        display: grid;
+        gap: 10px;
+        padding: 12px 18px;
       }
 
       .topbar h2 {
-        margin: 0;
         font-size: 18px;
+        margin: 0;
+      }
+
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .tab-button {
+        background: #e9e9eb;
+        padding: 7px 10px;
+      }
+
+      .tab-button.active {
+        background: #1d1d1f;
+        color: #ffffff;
+      }
+
+      .panel {
+        display: none;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      .panel.active {
+        display: block;
       }
 
       .messages {
-        overflow-y: auto;
+        min-height: 100%;
         padding: 22px;
       }
 
@@ -122,29 +151,29 @@ export function messageAppHtml(): string {
       }
 
       .bubble {
-        max-width: min(680px, 78%);
+        max-width: min(700px, 78%);
         border-radius: 18px;
-        padding: 10px 14px;
         line-height: 1.35;
+        padding: 10px 14px;
         white-space: pre-wrap;
       }
 
       .author .bubble {
-        color: #ffffff;
         background: #0a84ff;
         border-bottom-right-radius: 5px;
+        color: #ffffff;
       }
 
       .assistant .bubble {
-        color: #1d1d1f;
         background: #e9e9eb;
         border-bottom-left-radius: 5px;
+        color: #1d1d1f;
       }
 
       .bubble-feedback {
         align-self: flex-start;
-        border: 0;
         background: transparent;
+        border: 0;
         color: #6e6e73;
         cursor: pointer;
         font-size: 12px;
@@ -154,24 +183,21 @@ export function messageAppHtml(): string {
 
       .composer {
         border-top: 1px solid #e5e5ea;
-        padding: 12px;
         display: grid;
         gap: 10px;
+        padding: 12px;
       }
 
-      .actions {
+      .toolbar {
         display: flex;
-        gap: 8px;
         flex-wrap: wrap;
+        gap: 8px;
       }
 
-      .actions button,
+      .toolbar button,
       .send {
-        border: 0;
-        border-radius: 8px;
         background: #e9e9eb;
         padding: 8px 10px;
-        cursor: pointer;
       }
 
       .send {
@@ -181,17 +207,17 @@ export function messageAppHtml(): string {
 
       .input-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
+        grid-template-columns: minmax(0, 1fr) auto;
       }
 
       textarea {
-        resize: none;
-        min-height: 44px;
-        max-height: 140px;
         border: 1px solid #d1d1d6;
         border-radius: 14px;
+        max-height: 150px;
+        min-height: 44px;
         padding: 11px 13px;
+        resize: none;
       }
 
       @media (max-width: 760px) {
@@ -212,40 +238,123 @@ export function messageAppHtml(): string {
         <button id="newChat" class="new-chat" type="button">New Chat</button>
         <div id="storyList" class="story-list"></div>
       </aside>
-      <section class="chat">
+
+      <section class="workspace">
         <header class="topbar">
-          <h2>Story Chat</h2>
+          <h2 id="workspaceTitle">Story Room</h2>
+          <nav class="tabs" aria-label="Workspace tabs">
+            <button class="tab-button active" type="button" data-tab="story">Story Room</button>
+            <button class="tab-button" type="button" data-tab="draft">Draft Studio</button>
+            <button class="tab-button" type="button" data-tab="feedback">Feedback</button>
+            <button class="tab-button" type="button" data-tab="memory">Memory</button>
+          </nav>
         </header>
-        <div id="messages" class="messages"></div>
+
+        <section class="panel active" data-panel="story">
+          <div id="storyMessages" class="messages"></div>
+        </section>
+        <section class="panel" data-panel="draft">
+          <div id="draftMessages" class="messages"></div>
+        </section>
+        <section class="panel" data-panel="feedback">
+          <div id="feedbackMessages" class="messages"></div>
+        </section>
+        <section class="panel" data-panel="memory">
+          <div id="memoryMessages" class="messages"></div>
+        </section>
+
         <form id="composer" class="composer">
-          <div class="actions">
-            <button type="button" data-command="outline">Outline</button>
-            <button type="button" data-command="draft">Draft</button>
-            <button type="button" data-command="feedback">Feedback</button>
-            <button type="button" data-command="friendStyle">Friend Style</button>
-            <button type="button" data-command="botFeedback">Bot Feedback</button>
-            <button type="button" data-command="export">Export</button>
+          <div id="storyToolbar" class="toolbar">
+            <button id="askNow" type="button">Ask Now</button>
+            <button id="keepListening" type="button">Keep Listening</button>
+          </div>
+          <div id="draftToolbar" class="toolbar" hidden>
+            <button type="button" data-draft-command="angle">Brainstorm Angle</button>
+            <button type="button" data-draft-command="outline">Outline</button>
+            <button type="button" data-draft-command="draft">Draft</button>
+            <button type="button" data-draft-command="edit">Edit</button>
+            <button type="button" data-draft-command="title">Title</button>
+          </div>
+          <div id="feedbackToolbar" class="toolbar" hidden>
+            <button type="button" data-feedback-mode="specific">Specific Comment</button>
+            <button type="button" data-command="botFeedback" data-feedback-mode="general">General Advice</button>
+          </div>
+          <div id="memoryToolbar" class="toolbar" hidden>
+            <button type="button" data-command="friendStyle" data-memory-mode="friendStyle">Friend Style Import</button>
+            <button type="button" data-memory-mode="reflection">Reflection Skills</button>
           </div>
           <div class="input-row">
-            <textarea id="input" placeholder="Tell the story, or paste feedback after clicking Feedback..."></textarea>
+            <textarea id="input" placeholder="Send story fragments. I may jump in when something feels important..."></textarea>
             <button class="send" type="submit">Send</button>
           </div>
         </form>
       </section>
     </main>
+
     <script>
-      const messagesEl = document.querySelector("#messages");
+      const storyMessagesEl = document.querySelector("#storyMessages");
+      const draftMessagesEl = document.querySelector("#draftMessages");
+      const feedbackMessagesEl = document.querySelector("#feedbackMessages");
+      const memoryMessagesEl = document.querySelector("#memoryMessages");
       const inputEl = document.querySelector("#input");
       const formEl = document.querySelector("#composer");
       const storyListEl = document.querySelector("#storyList");
       const storyIdEl = document.querySelector("#storyId");
+      const workspaceTitleEl = document.querySelector("#workspaceTitle");
+      const toolbars = {
+        story: document.querySelector("#storyToolbar"),
+        draft: document.querySelector("#draftToolbar"),
+        feedback: document.querySelector("#feedbackToolbar"),
+        memory: document.querySelector("#memoryToolbar"),
+      };
+      const messageEls = {
+        story: storyMessagesEl,
+        draft: draftMessagesEl,
+        feedback: feedbackMessagesEl,
+        memory: memoryMessagesEl,
+      };
+      const tabTitles = {
+        story: "Story Room",
+        draft: "Draft Studio",
+        feedback: "Feedback",
+        memory: "Memory",
+      };
+      const placeholders = {
+        story: "Send story fragments. I may jump in when something feels important...",
+        draft: "Ask for an outline, draft, edit, title, or story angle...",
+        feedback: "Add a specific comment or general advice...",
+        memory: "Paste friend chat excerpts, voice-call transcripts, or reflection techniques...",
+      };
+      const TENSION_MARKERS = [
+        "?",
+        "but",
+        "however",
+        "wait",
+        "forgot",
+        "shocked",
+        "ashamed",
+        "uncomfortable",
+        "attracted",
+        "disgusted",
+        "angry",
+        "confused",
+      ];
+
       let storyId = "story-" + Date.now();
       let started = false;
-      let pendingCommand = null;
+      let activeTab = "story";
+      let feedbackMode = "general";
+      let memoryMode = "friendStyle";
       let selectedAssistantMessage = null;
+      let responseTimer = null;
       storyIdEl.textContent = storyId;
 
-      function addBubble(role, content, metadata = {}) {
+      function activeMessages() {
+        return messageEls[activeTab];
+      }
+
+      function addBubble(target, role, content, metadata = {}) {
+        const container = typeof target === "string" ? messageEls[target] : target;
         const row = document.createElement("div");
         row.className = "bubble-row " + role;
         if (metadata.messageId) row.dataset.messageId = metadata.messageId;
@@ -256,8 +365,9 @@ export function messageAppHtml(): string {
         if (role === "assistant" && metadata.messageId && metadata.feedbackEnabled) {
           addFeedbackButton(row, metadata.messageId, content);
         }
-        messagesEl.appendChild(row);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        container.appendChild(row);
+        container.parentElement.scrollTop = container.parentElement.scrollHeight;
+        return row;
       }
 
       function addFeedbackButton(row, messageId, content) {
@@ -267,8 +377,9 @@ export function messageAppHtml(): string {
         feedbackButton.textContent = "Give feedback on this response";
         feedbackButton.addEventListener("click", () => {
           selectedAssistantMessage = { id: messageId, content };
-          pendingCommand = "botFeedback";
-          inputEl.placeholder = "Tell me what this response should have done differently...";
+          feedbackMode = "specific";
+          switchTab("feedback");
+          inputEl.placeholder = "Specific Comment: what should this response have done differently?";
           inputEl.focus();
         });
         row.appendChild(feedbackButton);
@@ -292,16 +403,36 @@ export function messageAppHtml(): string {
         return data;
       }
 
+      function switchTab(tab) {
+        activeTab = tab;
+        document.querySelectorAll("[data-tab]").forEach((button) => {
+          button.classList.toggle("active", button.dataset.tab === tab);
+        });
+        document.querySelectorAll("[data-panel]").forEach((panel) => {
+          panel.classList.toggle("active", panel.dataset.panel === tab);
+        });
+        Object.entries(toolbars).forEach(([name, toolbar]) => {
+          toolbar.hidden = name !== tab;
+        });
+        workspaceTitleEl.textContent = tabTitles[tab];
+        inputEl.placeholder = placeholders[tab];
+        inputEl.focus();
+      }
+
       function resetChat() {
+        clearPendingResponse();
         storyId = "story-" + Date.now();
         started = false;
-        pendingCommand = null;
         selectedAssistantMessage = null;
         storyIdEl.textContent = storyId;
-        messagesEl.innerHTML = "";
-        inputEl.value = "";
-        inputEl.placeholder = "Tell the story, or paste feedback after clicking Feedback...";
-        addBubble("assistant", "Tell me the rough premise of the story. I’ll ask like a warm friend with editor instincts.");
+        storyMessagesEl.innerHTML = "";
+        draftMessagesEl.innerHTML = "";
+        feedbackMessagesEl.innerHTML = "";
+        memoryMessagesEl.innerHTML = "";
+        addBubble("story", "assistant", "Tell me fragments as they come. I will mostly listen, then jump in when something feels important.");
+        addBubble("draft", "assistant", "Draft Studio is separate. Ask for a story angle, outline, draft, edit, or title when you are ready.");
+        addBubble("feedback", "assistant", "Feedback can be a Specific Comment on one response, or General Advice about the whole chat. I will show the Updated prompt/profile layer after absorbing it.");
+        addBubble("memory", "assistant", "Memory is for Friend Style Import and Reflection Skills. Paste WhatsApp/iMessage exports or voice-call transcripts here.");
       }
 
       async function loadStories() {
@@ -337,30 +468,56 @@ export function messageAppHtml(): string {
       }
 
       async function openStory(id) {
+        clearPendingResponse();
         const project = await get("/api/story?storyId=" + encodeURIComponent(id));
         storyId = project.id;
         started = true;
-        pendingCommand = null;
         selectedAssistantMessage = null;
         storyIdEl.textContent = storyId;
-        messagesEl.innerHTML = "";
+        storyMessagesEl.innerHTML = "";
         project.messages.forEach((message) => {
-          addBubble(message.role, message.content, {
+          addBubble("story", message.role, message.content, {
             messageId: message.id,
             feedbackEnabled: message.role === "assistant",
           });
         });
+        switchTab("story");
       }
 
-      async function sendMessage(content) {
-        addBubble("author", content);
-        addBubble("assistant", "Thinking...");
-        const thinking = messagesEl.lastElementChild;
+      function clearPendingResponse() {
+        if (responseTimer) {
+          clearTimeout(responseTimer);
+          responseTimer = null;
+        }
+      }
+
+      function shouldJumpInSoon(content) {
+        const lower = content.toLowerCase();
+        return TENSION_MARKERS.some((marker) => lower.includes(marker));
+      }
+
+      function scheduleAdaptiveReply(content) {
+        clearPendingResponse();
+        const delay = shouldJumpInSoon(content) ? 1800 : 10000;
+        responseTimer = setTimeout(() => {
+          requestStoryResponse();
+        }, delay);
+      }
+
+      async function saveStoryNote(content) {
+        addBubble("story", "author", content);
+        await post("/api/note", { storyId, content, createStory: !started });
+        started = true;
+        await loadStories();
+        scheduleAdaptiveReply(content);
+      }
+
+      async function requestStoryResponse() {
+        clearPendingResponse();
+        if (!started) return;
+        const thinking = addBubble("story", "assistant", "Thinking...");
         try {
-          const data = !started
-            ? await post("/api/start", { storyId, premise: content })
-            : await post("/api/chat", { storyId, content });
-          started = true;
+          const data = await post("/api/respond", { storyId });
           thinking.querySelector(".bubble").textContent = data.reply;
           if (data.assistantMessageId) {
             thinking.dataset.messageId = data.assistantMessageId;
@@ -372,12 +529,14 @@ export function messageAppHtml(): string {
         }
       }
 
-      async function runCommand(command, content) {
-        addBubble("author", "/" + command + (content ? "\\n" + content : ""));
-        addBubble("assistant", "Working...");
-        const thinking = messagesEl.lastElementChild;
+      async function runDraftCommand(command, content) {
+        const label = command === "angle" ? "Brainstorm Angle" : command;
+        addBubble("draft", "author", label + (content ? "\\n" + content : ""));
+        addBubble("draft", "assistant", "Working...");
+        const thinking = draftMessagesEl.lastElementChild;
         try {
-          const data = await post("/api/command", { storyId, command, content });
+          const routeCommand = command === "outline" ? "outline" : command === "draft" ? "draft" : "outline";
+          const data = await post("/api/command", { storyId, command: routeCommand, content });
           thinking.querySelector(".bubble").textContent = data.savedPath
             ? data.reply + "\\n\\nSaved: " + data.savedPath
             : data.reply;
@@ -386,24 +545,13 @@ export function messageAppHtml(): string {
         }
       }
 
-      async function learnFriendStyle(rawChat) {
-        addBubble("author", "/friend style\\n" + rawChat);
-        addBubble("assistant", "Learning friend conversation style...");
-        const thinking = messagesEl.lastElementChild;
-        try {
-          const data = await post("/api/friend-conversation-style", { rawChat });
-          thinking.querySelector(".bubble").textContent = data.savedPath
-            ? data.reply + "\\n\\nSaved: " + data.savedPath
-            : data.reply;
-        } catch (error) {
-          thinking.querySelector(".bubble").textContent = error.message;
-        }
-      }
-
-      async function sendBotFeedback(selected, comment) {
-        addBubble("author", "/bot feedback\\n" + comment);
-        addBubble("assistant", "Updating bot calibration...");
-        const thinking = messagesEl.lastElementChild;
+      async function submitFeedback(comment) {
+        const selected = feedbackMode === "specific" && selectedAssistantMessage
+          ? selectedAssistantMessage
+          : { id: "general-advice", content: "General advice for the whole chat or current draft." };
+        addBubble("feedback", "author", (feedbackMode === "specific" ? "Specific Comment" : "General Advice") + "\\n" + comment);
+        addBubble("feedback", "assistant", "Updating bot calibration...");
+        const thinking = feedbackMessagesEl.lastElementChild;
         try {
           const data = await post("/api/bot-feedback", {
             storyId,
@@ -411,9 +559,27 @@ export function messageAppHtml(): string {
             assistantResponse: selected.content,
             comment,
           });
-          thinking.querySelector(".bubble").textContent = data.savedPath
-            ? data.reply + "\\n\\nSaved: " + data.savedPath
-            : data.reply;
+          thinking.querySelector(".bubble").textContent = "Updated prompt/profile layer:\\n\\n" + data.reply;
+          selectedAssistantMessage = null;
+        } catch (error) {
+          thinking.querySelector(".bubble").textContent = error.message;
+        }
+      }
+
+      async function submitMemory(content) {
+        addBubble("memory", "author", (memoryMode === "friendStyle" ? "Friend Style Import" : "Reflection Skills") + "\\n" + content);
+        addBubble("memory", "assistant", "Updating memory...");
+        const thinking = memoryMessagesEl.lastElementChild;
+        try {
+          const data = memoryMode === "friendStyle"
+            ? await post("/api/friend-conversation-style", { rawChat: content })
+            : await post("/api/bot-feedback", {
+                storyId,
+                assistantMessageId: "reflection-skills",
+                assistantResponse: "Reflection Skills import",
+                comment: content,
+              });
+          thinking.querySelector(".bubble").textContent = "Updated prompt/profile layer:\\n\\n" + data.reply;
         } catch (error) {
           thinking.querySelector(".bubble").textContent = error.message;
         }
@@ -422,23 +588,12 @@ export function messageAppHtml(): string {
       formEl.addEventListener("submit", async (event) => {
         event.preventDefault();
         const content = inputEl.value.trim();
-        if (!content && pendingCommand !== "feedback") return;
+        if (!content) return;
         inputEl.value = "";
-        if (pendingCommand) {
-          const command = pendingCommand;
-          pendingCommand = null;
-          if (command === "friendStyle") {
-            await learnFriendStyle(content);
-          } else if (command === "botFeedback") {
-            const selected = selectedAssistantMessage || { id: "manual-reference", content: "User described the response manually." };
-            selectedAssistantMessage = null;
-            await sendBotFeedback(selected, content);
-          } else {
-            await runCommand(command, content);
-          }
-        } else {
-          await sendMessage(content);
-        }
+        if (activeTab === "story") await saveStoryNote(content);
+        else if (activeTab === "draft") await runDraftCommand("draft", content);
+        else if (activeTab === "feedback") await submitFeedback(content);
+        else if (activeTab === "memory") await submitMemory(content);
       });
 
       inputEl.addEventListener("keydown", (event) => {
@@ -448,37 +603,44 @@ export function messageAppHtml(): string {
         }
       });
 
-      document.querySelectorAll("[data-command]").forEach((button) => {
-        button.addEventListener("click", async () => {
-          const command = button.dataset.command;
-          if (command === "feedback") {
-            pendingCommand = "feedback";
-            inputEl.placeholder = "Paste friend or reader feedback, then press Send...";
-            inputEl.focus();
-            return;
-          }
-          if (command === "friendStyle") {
-            pendingCommand = "friendStyle";
-            inputEl.placeholder = "Paste friend chat excerpts. I’ll learn conversational patterns, not story material...";
-            inputEl.focus();
-            return;
-          }
-          if (command === "botFeedback") {
-            pendingCommand = "botFeedback";
-            inputEl.placeholder = selectedAssistantMessage
-              ? "Tell me what this selected response should have done differently..."
-              : "No response selected. Describe which recent bot response you mean and what should change...";
-            inputEl.focus();
-            return;
-          }
-          await runCommand(command, "");
+      document.querySelectorAll("[data-tab]").forEach((button) => {
+        button.addEventListener("click", () => switchTab(button.dataset.tab));
+      });
+
+      document.querySelector("#askNow").addEventListener("click", requestStoryResponse);
+      document.querySelector("#keepListening").addEventListener("click", () => {
+        clearPendingResponse();
+        addBubble("story", "assistant", "I will keep listening.");
+      });
+
+      document.querySelectorAll("[data-draft-command]").forEach((button) => {
+        button.addEventListener("click", () => runDraftCommand(button.dataset.draftCommand, inputEl.value.trim()));
+      });
+
+      document.querySelectorAll("[data-feedback-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+          feedbackMode = button.dataset.feedbackMode;
+          inputEl.placeholder = feedbackMode === "specific"
+            ? "Specific Comment: choose a response or describe which one you mean..."
+            : "General Advice: comment on the whole chat, draft, or interview vibe...";
+          inputEl.focus();
+        });
+      });
+
+      document.querySelectorAll("[data-memory-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+          memoryMode = button.dataset.memoryMode;
+          inputEl.placeholder = memoryMode === "friendStyle"
+            ? "Friend Style Import: paste WhatsApp, iMessage, or voice-call transcript text..."
+            : "Reflection Skills: paste techniques you want the bot to use to unfold story detail...";
+          inputEl.focus();
         });
       });
 
       document.querySelector("#newChat").addEventListener("click", resetChat);
 
       resetChat();
-      loadStories().catch((error) => addBubble("assistant", error.message));
+      loadStories().catch((error) => addBubble("story", "assistant", error.message));
     </script>
   </body>
 </html>`;
