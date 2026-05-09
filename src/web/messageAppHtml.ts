@@ -235,7 +235,8 @@ export function messageAppHtml(): string {
         max-width: 100%;
       }
 
-      .reply-preview {
+      .reply-preview,
+      .edit-preview {
         align-items: center;
         background: #f2f2f7;
         border: 1px solid #d1d1d6;
@@ -247,17 +248,20 @@ export function messageAppHtml(): string {
         padding: 7px 10px;
       }
 
-      .reply-preview[hidden] {
+      .reply-preview[hidden],
+      .edit-preview[hidden] {
         display: none;
       }
 
-      .reply-preview strong {
+      .reply-preview strong,
+      .edit-preview strong {
         color: #1d1d1f;
         display: block;
         font-size: 12px;
       }
 
-      .reply-preview span {
+      .reply-preview span,
+      .edit-preview span {
         display: block;
         font-size: 12px;
         overflow: hidden;
@@ -266,6 +270,7 @@ export function messageAppHtml(): string {
       }
 
       .reply-preview button,
+      .edit-preview button,
       .message-menu button {
         background: transparent;
         border: 0;
@@ -420,9 +425,16 @@ export function messageAppHtml(): string {
             </div>
             <button id="cancelReply" type="button" aria-label="Cancel reply">x</button>
           </div>
+          <div id="editPreview" class="edit-preview" hidden>
+            <div>
+              <strong>Editing Message</strong>
+              <span id="editPreviewText"></span>
+            </div>
+            <button id="cancelEdit" type="button" aria-label="Cancel edit">x</button>
+          </div>
           <div class="input-row">
             <textarea id="input" placeholder="Send story fragments. I may jump in when something feels important..."></textarea>
-            <button class="send" type="submit">Send</button>
+            <button id="sendButton" class="send" type="submit">Send</button>
           </div>
         </form>
       </section>
@@ -445,6 +457,10 @@ export function messageAppHtml(): string {
       const replyPreviewEl = document.querySelector("#replyPreview");
       const replyPreviewTextEl = document.querySelector("#replyPreviewText");
       const cancelReplyEl = document.querySelector("#cancelReply");
+      const editPreviewEl = document.querySelector("#editPreview");
+      const editPreviewTextEl = document.querySelector("#editPreviewText");
+      const cancelEditEl = document.querySelector("#cancelEdit");
+      const sendButtonEl = document.querySelector("#sendButton");
       const messageMenuEl = document.querySelector("#messageMenu");
       const editMessageEl = document.querySelector("#editMessage");
       const deleteMessageEl = document.querySelector("#deleteMessage");
@@ -494,6 +510,7 @@ export function messageAppHtml(): string {
       let memoryMode = "friendStyle";
       let selectedAssistantMessage = null;
       let replyToMessage = null;
+      let editingMessageId = null;
       let menuMessageId = null;
       let storyTranscript = [];
       let responseTimer = null;
@@ -641,6 +658,26 @@ export function messageAppHtml(): string {
         inputEl.placeholder = placeholders[activeTab];
       }
 
+      function beginEditMessage(messageId, content) {
+        editingMessageId = messageId;
+        clearReplyTarget();
+        hideMessageMenu();
+        inputEl.value = content;
+        editPreviewTextEl.textContent = content;
+        editPreviewEl.hidden = false;
+        sendButtonEl.textContent = "Save";
+        inputEl.placeholder = "Edit your sent message...";
+        inputEl.focus();
+      }
+
+      function clearEditMode() {
+        editingMessageId = null;
+        editPreviewTextEl.textContent = "";
+        editPreviewEl.hidden = true;
+        sendButtonEl.textContent = "Send";
+        inputEl.placeholder = placeholders[activeTab];
+      }
+
       function addSwipeReply(row, messageId, content) {
         let startX = 0;
         row.addEventListener("touchstart", (event) => {
@@ -715,6 +752,7 @@ export function messageAppHtml(): string {
       function switchTab(tab) {
         activeTab = tab;
         if (tab !== "story" && replyToMessage) clearReplyTarget();
+        if (tab !== "story" && editingMessageId) clearEditMode();
         document.querySelectorAll("[data-tab]").forEach((button) => {
           button.classList.toggle("active", button.dataset.tab === tab);
         });
@@ -735,6 +773,7 @@ export function messageAppHtml(): string {
         started = false;
         selectedAssistantMessage = null;
         clearReplyTarget();
+        clearEditMode();
         storyTranscript = [];
         storyIdEl.textContent = storyId;
         storyMessagesEl.innerHTML = "";
@@ -785,6 +824,7 @@ export function messageAppHtml(): string {
         storyId = project.id;
         started = true;
         selectedAssistantMessage = null;
+        clearEditMode();
         storyTranscript = [];
         storyIdEl.textContent = storyId;
         storyMessagesEl.innerHTML = "";
@@ -841,6 +881,20 @@ export function messageAppHtml(): string {
         started = true;
         await loadStories();
         scheduleAdaptiveReply(content);
+      }
+
+      async function submitEditedMessage(content) {
+        const id = editingMessageId;
+        if (!id) return;
+        try {
+          await post("/api/edit-message", { storyId, messageId: id, content });
+          clearEditMode();
+          inputEl.value = "";
+          await openStory(storyId);
+          await loadStories();
+        } catch (error) {
+          addBubble("story", "assistant", error.message);
+        }
       }
 
       async function requestStoryResponse() {
@@ -923,11 +977,14 @@ export function messageAppHtml(): string {
         event.preventDefault();
         const content = inputEl.value.trim();
         if (!content) return;
-        inputEl.value = "";
-        if (activeTab === "story") await saveStoryNote(content);
-        else if (activeTab === "draft") await runDraftCommand("draft", content);
-        else if (activeTab === "feedback") await submitFeedback(content);
-        else if (activeTab === "memory") await submitMemory(content);
+        if (activeTab === "story" && editingMessageId) await submitEditedMessage(content);
+        else {
+          inputEl.value = "";
+          if (activeTab === "story") await saveStoryNote(content);
+          else if (activeTab === "draft") await runDraftCommand("draft", content);
+          else if (activeTab === "feedback") await submitFeedback(content);
+          else if (activeTab === "memory") await submitMemory(content);
+        }
       });
 
       inputEl.addEventListener("keydown", (event) => {
@@ -948,20 +1005,15 @@ export function messageAppHtml(): string {
       });
 
       cancelReplyEl.addEventListener("click", clearReplyTarget);
+      cancelEditEl.addEventListener("click", () => {
+        inputEl.value = "";
+        clearEditMode();
+      });
 
       editMessageEl.addEventListener("click", async () => {
         if (!menuMessageId) return;
-        const id = menuMessageId;
         const currentContent = messageMenuEl.dataset.content ?? "";
-        const nextContent = prompt("Edit message", currentContent);
-        hideMessageMenu();
-        if (!nextContent?.trim()) return;
-        try {
-          await post("/api/edit-message", { storyId, messageId: id, content: nextContent });
-          await openStory(storyId);
-        } catch (error) {
-          addBubble("story", "assistant", error.message);
-        }
+        beginEditMessage(menuMessageId, currentContent);
       });
 
       deleteMessageEl.addEventListener("click", async () => {

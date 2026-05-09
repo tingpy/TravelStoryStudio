@@ -35,6 +35,11 @@ describe("messageAppHtml", () => {
     expect(html).toContain("replyPreview");
     expect(html).toContain("Replying to Bot");
     expect(html).toContain("replyToMessage");
+    expect(html).toContain("editPreview");
+    expect(html).toContain("Editing Message");
+    expect(html).toContain("editingMessageId");
+    expect(html).toContain("cancelEdit");
+    expect(html).toContain("beginEditMessage");
     expect(html).toContain("/api/edit-message");
     expect(html).toContain("/api/delete-message");
     expect(html).toContain("Edit");
@@ -42,6 +47,7 @@ describe("messageAppHtml", () => {
     expect(html).toContain("touchstart");
     expect(html).toContain("contextmenu");
     expect(html).toContain("suppressNextDocumentClick");
+    expect(html).not.toContain("prompt(");
   });
 
   it("shows story chat context when giving feedback on a specific response", () => {
