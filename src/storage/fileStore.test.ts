@@ -142,6 +142,12 @@ describe("FileStoryStore", () => {
       replyToMessageId: "assistant-1",
       replyToContent: "What made that reaction feel bigger than the event?",
     });
+    await store.appendMessage("story-1", {
+      id: "assistant-2",
+      role: "assistant",
+      content: "Old response based on the unedited message.",
+      createdAt: "2026-05-09T00:01:30.000Z",
+    });
 
     await store.editAuthorMessage("story-1", "author-1", "Because I felt judged, flattered, and embarrassed.", "2026-05-09T00:02:00.000Z");
 

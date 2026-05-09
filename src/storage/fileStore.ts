@@ -95,29 +95,34 @@ export class FileStoryStore {
 
   async editAuthorMessage(storyId: string, messageId: string, content: string, editedAt: string): Promise<void> {
     const messages = await this.readMessages(storyId);
-    const nextMessages = messages.map((message) => {
+    const messageIndex = messages.findIndex((message) => message.id === messageId);
+    if (messageIndex === -1) {
+      throw new Error("Message not found.");
+    }
+    if (messages[messageIndex].role !== "author") {
+      throw new Error("Only author messages can be edited.");
+    }
+    const nextMessages = messages.slice(0, messageIndex + 1).map((message) => {
       if (message.id !== messageId) return message;
       if (message.role !== "author") {
         throw new Error("Only author messages can be edited.");
       }
       return { ...message, content: content.trim(), editedAt };
     });
-    if (!messages.some((message) => message.id === messageId)) {
-      throw new Error("Message not found.");
-    }
     await this.writeMessages(storyId, nextMessages);
   }
 
   async deleteAuthorMessage(storyId: string, messageId: string): Promise<void> {
     const messages = await this.readMessages(storyId);
-    const message = messages.find((candidate) => candidate.id === messageId);
+    const messageIndex = messages.findIndex((candidate) => candidate.id === messageId);
+    const message = messages[messageIndex];
     if (!message) {
       throw new Error("Message not found.");
     }
     if (message.role !== "author") {
       throw new Error("Only author messages can be deleted.");
     }
-    await this.writeMessages(storyId, messages.filter((candidate) => candidate.id !== messageId));
+    await this.writeMessages(storyId, messages.slice(0, messageIndex));
   }
 
   private async writeMessages(storyId: string, messages: ChatMessage[]): Promise<void> {

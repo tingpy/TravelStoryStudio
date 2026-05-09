@@ -40,6 +40,7 @@ describe("messageAppHtml", () => {
     expect(html).toContain("editingMessageId");
     expect(html).toContain("cancelEdit");
     expect(html).toContain("beginEditMessage");
+    expect(html).toContain("regenerateAfterHistoryChange");
     expect(html).toContain("/api/edit-message");
     expect(html).toContain("/api/delete-message");
     expect(html).toContain("Edit");

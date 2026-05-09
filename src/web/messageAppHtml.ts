@@ -890,10 +890,19 @@ export function messageAppHtml(): string {
           await post("/api/edit-message", { storyId, messageId: id, content });
           clearEditMode();
           inputEl.value = "";
-          await openStory(storyId);
-          await loadStories();
+          await regenerateAfterHistoryChange();
         } catch (error) {
           addBubble("story", "assistant", error.message);
+        }
+      }
+
+      async function regenerateAfterHistoryChange() {
+        clearPendingResponse();
+        const project = await get("/api/story?storyId=" + encodeURIComponent(storyId));
+        await openStory(storyId);
+        await loadStories();
+        if (project.messages.some((message) => message.role === "author")) {
+          await requestStoryResponse();
         }
       }
 
@@ -1023,8 +1032,7 @@ export function messageAppHtml(): string {
         if (!confirm("Delete this sent message?")) return;
         try {
           await post("/api/delete-message", { storyId, messageId: id });
-          await openStory(storyId);
-          await loadStories();
+          await regenerateAfterHistoryChange();
         } catch (error) {
           addBubble("story", "assistant", error.message);
         }
